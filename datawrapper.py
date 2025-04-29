@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-\
+# -*- coding: utf-8 -*-
 """datawrapper.py - Streamlit app with Datawrapper integration"""
 
 import streamlit as st
@@ -8,7 +8,7 @@ from bs4.element import Comment
 import pandas as pd
 import json
 import os
-import csv # Keep csv for reading the temporary file
+import csv
 
 # --- Datawrapper API Configuration ---
 # Use Streamlit secrets for the API token
@@ -33,7 +33,7 @@ except Exception as e:
     st.error(f"Error configuring Datawrapper API: {e}")
     datawrapper_configured = False
 
-# --- Helper Functions (Keep as is) ---
+# --- Helper Functions ---
 def find_element_in_soup(soup, element_type, element_id):
     """
     Finds an element by its type and ID within a BeautifulSoup object,
@@ -205,13 +205,12 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
 def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
     Creates a Datawrapper chart from a pandas DataFrame and publishes it.
-    Includes detailed logging for debugging.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
         return
 
-    st.subheader("Datawrapper Chart Creation") # Add a clear section header
+    st.subheader("Datawrapper Chart Creation")
 
     # Define temporary CSV filename
     csv_filename = f"pbp_data_{team1_abbr}_{team2_abbr}.csv"
@@ -241,36 +240,17 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
             "title": f"{team_a_col} vs. {team_b_col} Game Flow",
             "type": "d3-lines"
         }
-        st.text(f"Request URL: {BASE_URL}/charts")
-        st.text(f"Request Method: POST")
-        st.text(f"Request Headers: {HEADERS_JSON}")
-        st.text(f"Request Body: {json.dumps(chart_config)}")
-
         response = requests.post(f"{BASE_URL}/charts", headers=HEADERS_JSON, data=json.dumps(chart_config))
-
-        st.text(f"Response Status Code: {response.status_code}")
-        st.text(f"Response Body: {response.text}")
-
-        response.raise_for_status() # This will raise an exception for bad status codes
+        response.raise_for_status()
         chart_id = response.json()['id']
         st.success(f"Chart created successfully with ID: {chart_id}")
 
         # Step 3: Upload CSV data
         st.info(f"Attempting to upload data to chart ID: {chart_id}...")
         upload_url = f"{BASE_URL}/charts/{chart_id}/data"
-        st.text(f"Request URL: {upload_url}")
-        st.text(f"Request Method: PUT")
-        st.text(f"Request Headers: {HEADERS_CSV}")
-        # Note: We won't print the whole CSV data here as it might be large
-
         with open(csv_filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
-
         upload_response = requests.put(upload_url, headers=HEADERS_CSV, data=csv_data.encode('utf-8'))
-
-        st.text(f"Response Status Code: {upload_response.status_code}")
-        st.text(f"Response Body: {upload_response.text}")
-
         upload_response.raise_for_status()
         st.success("CSV data uploaded successfully.")
 
@@ -299,11 +279,11 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                         },
                         team_b_col: {
                             "symbols": {"on": "last", "style": "hollow", "enabled": True},
-                            "enabled": True, # Ensure enabled is True
+                            "enabled": True,
                             "valueLabels": {"first": False, "enabled": True}
                         }
                     },
-                     "legend": { # Add legend configuration
+                     "legend": {
                          "enabled": True,
                          "position": "top",
                          "alignment": "left"
@@ -354,12 +334,12 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "area-opacity": 0.5,
                     "custom-area-fills": [
                         {
-                            "id": "area_fill_1", # Use a generic ID
+                            "id": "area_fill_1",
                             "to": team_b_col,
                             "from": team_a_col,
                             "color": "#cccccc",
                             "opacity": 0.3,
-                            "colorNegative": "#E31A1C", # Example color for negative difference
+                            "colorNegative": "#E31A1C",
                             "interpolation": "linear",
                             "useMixedColors": False
                         }
@@ -368,48 +348,31 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "interpolation": "monotone-x",
                     "hover-highlight": True,
                     "plotHeightFixed": 350,
-                    "show-color-key": True # Ensure color key is shown
+                    "show-color-key": True
                 }
             }
         }
-        st.text(f"Request URL: {metadata_url}")
-        st.text(f"Request Method: PATCH")
-        st.text(f"Request Headers: {HEADERS_JSON}")
-        st.text(f"Request Body (partial): {json.dumps(metadata_patch)[:500]}...") # Print partial body
-
         patch_response = requests.patch(metadata_url, headers=HEADERS_JSON, data=json.dumps(metadata_patch))
-
-        st.text(f"Response Status Code: {patch_response.status_code}")
-        st.text(f"Response Body: {patch_response.text}")
-
         patch_response.raise_for_status()
         st.success("Metadata patched successfully.")
 
         # Step 5: Publish chart
         st.info(f"Attempting to publish chart ID: {chart_id}...")
         publish_url = f"{BASE_URL}/charts/{chart_id}/publish"
-        st.text(f"Request URL: {publish_url}")
-        st.text(f"Request Method: POST")
-        st.text(f"Request Headers: {{'Authorization': '...'}}") # Don't print the full token
-
         publish_response = requests.post(publish_url, headers={'Authorization': f'Bearer {API_TOKEN}'})
-
-        st.text(f"Response Status Code: {publish_response.status_code}")
-        st.text(f"Response Body: {publish_response.text}")
-
         publish_response.raise_for_status()
-        st.success("Chart published successfully!")
+        st.success("Chart published!")
 
         # Step 6: Output chart URL
         chart_url = f"https://www.datawrapper.de/_/{chart_id}"
-        st.subheader("Datawrapper Chart Link") # Changed subheader for clarity
+        st.subheader("Datawrapper Chart Link")
         st.write(f"View and embed the chart here: {chart_url}")
 
     except requests.exceptions.RequestException as e:
         st.error(f"Datawrapper API Error: {e}")
         if e.response is not None:
-            st.text(f"Error Response Status Code: {e.response.status_code}")
-            st.text(f"Error Response Body: {e.response.text}")
+            st.error(f"Error Response Status Code: {e.response.status_code}")
+            st.error(f"Error Response Body: {e.response.text}")
     except FileNotFoundError:
         st.error(f"Temporary CSV file not found: {csv_filename}")
     except Exception as e:
@@ -417,11 +380,11 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     finally:
         # Clean up the temporary CSV file
         if os.path.exists(csv_filename):
-            # os.remove(csv_filename) # Keep the file for inspection if needed for debugging
-            st.warning(f"Temporary file kept for debugging: {csv_filename}. Delete manually if not needed.")
+            os.remove(csv_filename)
+            st.info(f"Temporary file removed: {csv_filename}")
 
 
-# --- Main Streamlit App Logic --- (remains the same)
+# --- Main Streamlit App Logic ---
 def main():
     """
     Streamlit app for analyzing box scores and creating Datawrapper charts.
