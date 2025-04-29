@@ -86,21 +86,20 @@ def scrape_team_basic_stats(soup, team_abbr):
     div_id = f'div_box-{team_abbr}-game-basic' # ID of the container div
     table_id = f'box-{team_abbr}-game-basic' # ID of the table inside the div
 
-    # Attempting to find div and table - keep st.success/warning for user feedback
     container_div = find_element_in_soup(soup, 'div', div_id)
 
     if not container_div:
         st.warning(f"Could not find the '{div_id}' container div on the page for {team_abbr}.")
         return None
 
-    st.success(f"Found div '{div_id}' for {team_abbr}. Attempting to find table '{table_id}' inside...")
+    # Removed: st.success(f"Found div '{div_id}' for {team_abbr}. Attempting to find table '{table_id}' inside...")
     team_stats_table = container_div.find('table', id=table_id)
 
     if not team_stats_table:
         st.warning(f"Could not find the '{table_id}' table inside the '{div_id}' div for {team_abbr}.")
         return None
 
-    st.success(f"Found table '{table_id}' for {team_abbr}. Attempting to extract data...")
+    # Removed: st.success(f"Found table '{table_id}' for {team_abbr}. Attempting to extract data...")
 
     try:
         # Extract table headers
@@ -144,7 +143,7 @@ def scrape_team_basic_stats(soup, team_abbr):
              # Removed the warning about inconsistent rows before padding
 
              padded_data = [row + [None] * (max_cols - len(row)) for row in data]
-             st.success(f"Headers and data extracted successfully for {team_abbr}.")
+             # Removed: st.success(f"Headers and data extracted successfully for {team_abbr}.")
              df = pd.DataFrame(padded_data, columns=headers)
              return df
         else:
@@ -201,6 +200,8 @@ def main():
                             # Team abbr is in the first column (index 0)
                             team1_abbr = line_score_df.iloc[0, 0]
                             team2_abbr = line_score_df.iloc[1, 0]
+
+                            # Removed: st.text(f"Attempting to scrape stats for teams: {team1_abbr}, {team2_abbr}")
 
                             # Scrape and display stats for Team 1
                             st.subheader(f"{team1_abbr} Basic Stats")
