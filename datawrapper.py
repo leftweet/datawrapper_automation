@@ -156,11 +156,12 @@ def scrape_team_basic_stats(soup, team_abbr):
         st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
         return None
 
-# Updated function to scrape Play-by-Play table with debug output and robust header finding
+# Updated function to scrape Play-by-Play table with debug output and disabled caching
+@st.cache_data(ttl=600) # Add caching decorator (cache for 10 minutes)
 def scrape_play_by_play(original_url):
     """
     Scrapes the Play-by-Play table from a basketball-reference.com PBP URL.
-    Includes debug output and robust header finding.
+    Includes debug output.
 
     Args:
         original_url (str): The original box score URL.
@@ -213,11 +214,13 @@ def scrape_play_by_play(original_url):
                 st.text(f"PBP Header row identified: {header_row_element is not None}")
                 if not header_row_element:
                      st.warning(f"Could not identify a suitable header row in the PBP thead.")
-                     # Continue to extract data even if headers are missing, but warn.
-                     # The DataFrame will not have column names in this case.
+                     # If headers aren't found, we can't create a DataFrame with meaningful columns
+                     return None
 
 
-                # Extract table rows (play-by-play events)
+                st.text(f"Extracted Headers: {headers}")
+
+                # --- Data extraction ---
                 data = []
                 if pbp_table.find('tbody'): # Ensure tbody exists
                     tbody_rows = pbp_table.select('tbody tr')
@@ -244,31 +247,27 @@ def scrape_play_by_play(original_url):
 
                 st.text(f"Total PBP data rows extracted: {len(data)}")
 
-                if data: # Check if data was extracted (headers might be missing)
-                    # Determine max columns based on headers if available, otherwise find max row length
-                    max_cols = len(headers) if headers else (max(len(row) for row in data) if data else 0)
+                if data: # Check if data was extracted (headers check is above)
+                    max_cols = len(headers) # Use header length for expected columns
                     st.text(f"Expected number of PBP columns: {max_cols}")
 
 
                     # Ensure data rows have the same number of columns (pad if necessary)
-                    # This padding is crucial if headers were found to match data row length
-                    # If headers were not found, we pad based on the max row length found in data.
+                    # Pad data rows to match the number of headers
                     padded_data = []
-                    for row in data:
+                    for i, row in enumerate(data):
                          padded_row = row + [None] * (max_cols - len(row))
-                         # If headers were found, truncate rows that are unexpectedly longer
-                         if headers and len(padded_row) > max_cols:
-                              padded_row = padded_row[:max_cols]
+                         # If a row is unexpectedly longer than headers, truncate it.
+                         if len(padded_row) > max_cols:
+                             st.text(f"Truncating PBP data row {i+1} (length {len(row)}) to match header count ({max_cols}).")
+                             padded_row = padded_row[:max_cols]
                          padded_data.append(padded_row)
 
 
-                    # If headers were not found, create generic column names
-                    column_names = headers if headers else [f'Col{i+1}' for i in range(max_cols)]
-
-
                     st.success("PBP Headers and data processing complete.")
-                    df = pd.DataFrame(padded_data, columns=column_names)
+                    df = pd.DataFrame(padded_data, columns=headers) # Use extracted headers as columns
                     st.text("PBP DataFrame created.")
+                    st.text("Returning PBP DataFrame.") # New debug message before return
                     return df
                 else:
                     st.warning(f"No valid data rows extracted from the '{table_id}' table on the PBP page.")
@@ -324,13 +323,11 @@ def main():
                 st.header("Team Trends")
 
                 # Scrape and display the Play-by-Play table FIRST
-                # PBP scraping fetches its own URL, so it doesn't need the initial soup
+                # PBP scraping fetches its own URL
                 pbp_df = scrape_play_by_play(box_score_url)
                 if pbp_df is not None:
                     st.dataframe(pbp_df)
-                else:
-                    # Warning is displayed inside scrape_play_by_play
-                    pass
+                # Warning is displayed inside scrape_play_by_play if it fails
 
 
                 # Scrape and display the line score table (using the initially fetched soup)
