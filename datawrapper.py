@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
+from bs4.element import Comment # Import Comment
 import pandas as pd
 
 def scrape_line_score(url):
@@ -27,9 +28,10 @@ def scrape_line_score(url):
         # Check if the table is directly available or commented out
         line_score_table = soup.find('table', id='line_score')
 
+        # If not found directly, search for commented out tables
         if not line_score_table:
-             # If not found directly, search for commented out tables
-             comments = soup.find_all(string=lambda text: isinstance(text, type(BeautifulSoup.Comment)))
+             # Use the correct way to check for Comment type
+             comments = soup.find_all(string=lambda text: isinstance(text, Comment))
              for comment in comments:
                  soup_comment = BeautifulSoup(comment, 'html.parser')
                  line_score_table = soup_comment.find('table', id='line_score')
@@ -68,14 +70,14 @@ def scrape_line_score(url):
                 return None
 
         else:
-            st.error("Could not find the line score table on the page.")
+            st.error("Could not find the line score table with ID 'line_score' on the page.")
             return None
 
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching the URL: {e}")
         return None
     except Exception as e:
-        st.error(f"An error occurred during scraping: {e}")
+        st.error(f"An unexpected error occurred during scraping: {e}")
         return None
 
 def main():
@@ -112,7 +114,8 @@ def main():
                 st.dataframe(line_score_df) # Use st.dataframe for interactive table
 
             else:
-                st.warning("Could not display line score. Please check the URL and try again.")
+                # Error message is already displayed in the scrape_line_score function
+                pass # Do nothing here
 
 
             # --- Placeholder Sections for other charts ---
