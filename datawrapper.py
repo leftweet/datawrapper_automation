@@ -63,13 +63,11 @@ def scrape_line_score(soup):
                 df = pd.DataFrame(data, columns=headers)
                 return df
             else:
-                # Removed the st.warning here as it will be handled in main or by the return None
                 return None
         except Exception as e:
             st.error(f"Error parsing '{table_id}' table: {e}")
             return None
     else:
-         # Removed the st.warning here as it will be handled in main or by the return None
         return None
 
 
@@ -92,92 +90,94 @@ def scrape_team_basic_stats(soup, team_abbr):
     st.text(f"Attempting to find div '{div_id}'...")
     container_div = find_element_in_soup(soup, 'div', div_id)
 
+    if not container_div:
+        st.warning(f"Could not find the '{div_id}' container div on the page.")
+        return None
 
-    if container_div:
-        st.success(f"Found div '{div_id}'. Attempting to find table '{table_id}' inside...")
-        team_stats_table = container_div.find('table', id=table_id)
+    st.success(f"Found div '{div_id}'. Attempting to find table '{table_id}' inside...")
+    team_stats_table = container_div.find('table', id=table_id)
 
-        if team_stats_table:
-            st.success(f"Found table '{table_id}' inside div '{div_id}'. Attempting to extract data...")
-            headers = []
-            header_row_element = None
-
-            # --- More robust header extraction ---
-            thead = team_stats_table.find('thead')
-            if thead:
-                 header_rows = thead.find_all('tr')
-                 st.text(f"Found {len(header_rows)} rows in the thead.")
-                 for i, row in enumerate(header_rows):
-                     row_cells = row.find_all(['th', 'td'])
-                     cell_texts = [cell.get_text().strip() for cell in row_cells]
-                     st.text(f"Checking thead row {i+1}: {cell_texts}")
-                     # Look for a characteristic header like 'MP' in the row's text
-                     if 'MP' in cell_texts:
-                         headers = cell_texts
-                         header_row_element = row
-                         st.text(f"Identified header row {i+1} containing 'MP'.")
-                         break # Found the header row
-
-
-            st.text(f"Header row identified: {header_row_element is not None}")
-            if header_row_element:
-                 st.text(f"Extracted Headers: {headers}")
-            else:
-                 st.warning("Could not identify a suitable header row in the thead.")
-
-
-            # --- Data extraction ---
-            data = []
-            if team_stats_table.find('tbody'): # Ensure tbody exists
-                 # Select only tbody rows that are not total rows ('thead' class) or empty rows
-                 player_rows = team_stats_table.select('tbody tr:not(.thead)')
-                 st.text(f"Number of potential player rows found: {len(player_rows)}")
-
-                 for i, row in enumerate(player_rows):
-                    row_cells = row.find_all(['th', 'td'])
-                    # Skip empty rows or rows that don't look like player data
-                    if not row_cells or row_cells[0].get_text().strip() == '':
-                         continue
-
-                    row_data = [cell.get_text().strip() for cell in row_cells]
-                    data.append(row_data)
-                    # Optional: print first few rows to inspect structure
-                    # if i < 5:
-                    #     st.text(f"Processed row {len(data)} data: {row_data}") # Use len(data) as we skip rows
-
-
-            st.text(f"Total data rows extracted: {len(data)}")
-
-            if headers and data:
-                 max_cols = len(headers)
-                 st.text(f"Expected number of columns (from headers): {max_cols}")
-                 # Check consistency of row lengths before padding
-                 inconsistent_rows = [i for i, row in enumerate(data) if len(row) != max_cols]
-                 if inconsistent_rows:
-                     st.warning(f"Found {len(inconsistent_rows)} rows with inconsistent column counts before padding.")
-                     # Optional: print inconsistent rows
-                     # for i in inconsistent_rows[:min(len(inconsistent_rows), 5)]: # print first 5 inconsistent rows
-                     #     st.text(f"Inconsistent row {i} (length {len(data[i])}): {data[i]}")
-
-
-                 padded_data = [row + [None] * (max_cols - len(row)) for row in data]
-                 st.success("Headers and data extracted successfully.")
-                 df = pd.DataFrame(padded_data, columns=headers)
-                 st.text("DataFrame created.")
-                 return df
-            else:
-                st.warning(f"Could not extract headers AND data from the '{table_id}' table inside '{div_id}'. Headers found: {len(headers) > 0}, Data rows extracted: {len(data) > 0}")
-                return None
-        except Exception as e:
-            st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}': {e}")
-            return None
-    else:
+    if not team_stats_table:
         st.warning(f"Could not find the '{table_id}' table inside the '{div_id}' div.")
         return None
-    # Add a return None here if neither the div nor table were found
-    return None # Should not be reached if warnings are displayed, but good practice
+
+    st.success(f"Found table '{table_id}' inside div '{div_id}'. Attempting to extract data...")
+
+    # --- Main try block for parsing logic ---
+    try:
+        # Extract table headers
+        headers = []
+        header_row_element = None
+
+        thead = team_stats_table.find('thead')
+        if thead:
+             header_rows = thead.find_all('tr')
+             st.text(f"Found {len(header_rows)} rows in the thead.")
+             for i, row in enumerate(header_rows):
+                 row_cells = row.find_all(['th', 'td'])
+                 cell_texts = [cell.get_text().strip() for cell in row_cells]
+                 st.text(f"Checking thead row {i+1}: {cell_texts}")
+                 # Look for a characteristic header like 'MP' in the row's text
+                 if 'MP' in cell_texts:
+                     headers = cell_texts
+                     header_row_element = row
+                     st.text(f"Identified header row {i+1} containing 'MP'.")
+                     break # Found the header row
 
 
+        st.text(f"Header row identified: {header_row_element is not None}")
+        if not header_row_element:
+             st.warning("Could not identify a suitable header row in the thead.")
+             # We can still proceed to extract data if headers are missing,
+             # but the DataFrame will not have column names.
+             # Returning None here makes more sense if headers are essential.
+             # Let's return None if headers aren't found.
+             return None
+
+
+        st.text(f"Extracted Headers: {headers}")
+
+
+        # --- Data extraction ---
+        data = []
+        if team_stats_table.find('tbody'): # Ensure tbody exists
+             player_rows = team_stats_table.select('tbody tr:not(.thead)')
+             st.text(f"Number of potential player rows found in tbody: {len(player_rows)}")
+
+             for i, row in enumerate(player_rows):
+                row_cells = row.find_all(['th', 'td'])
+                if not row_cells or row_cells[0].get_text().strip() == '':
+                     continue
+
+                row_data = [cell.get_text().strip() for cell in row_cells]
+                data.append(row_data)
+
+
+        st.text(f"Total data rows extracted: {len(data)}")
+
+        if data: # Check if data was extracted (headers check is above)
+             max_cols = len(headers)
+             st.text(f"Expected number of columns (from headers): {max_cols}")
+             # Check consistency of row lengths before padding
+             inconsistent_rows = [i for i, row in enumerate(data) if len(row) != max_cols]
+             if inconsistent_rows:
+                 st.warning(f"Found {len(inconsistent_rows)} rows with inconsistent column counts before padding.")
+
+             padded_data = [row + [None] * (max_cols - len(row)) for row in data]
+             st.success("Headers and data extracted successfully.")
+             df = pd.DataFrame(padded_data, columns=headers)
+             st.text("DataFrame created.")
+             return df
+        else:
+            st.warning(f"No data rows extracted from the '{table_id}' table inside '{div_id}'.")
+            return None
+
+    except Exception as e: # This except block catches errors during header/data parsing
+        st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}': {e}")
+        return None
+
+
+# The main function remains the same as the previous correct version
 def main():
     """
     Streamlit app for analyzing box scores.
@@ -211,15 +211,13 @@ def main():
                 st.header("Team Trends")
 
                 # Scrape and display the line score table
-                st.subheader("Line Score") # Add subheader even if scraping fails
+                st.subheader("Line Score")
                 line_score_df = scrape_line_score(soup)
 
                 if line_score_df is not None:
                     st.dataframe(line_score_df)
 
-                    # Check if we have enough rows in the line score for two teams
                     if len(line_score_df) >= 2:
-                        # Team abbr is in the first column (index 0)
                         try:
                             team1_abbr = line_score_df.iloc[0, 0]
                             team2_abbr = line_score_df.iloc[1, 0]
@@ -232,13 +230,11 @@ def main():
                             if team1_stats_df is not None:
                                 st.dataframe(team1_stats_df)
 
-
                             # Scrape and display stats for Team 2
                             st.subheader(f"{team2_abbr} Basic Stats")
                             team2_stats_df = scrape_team_basic_stats(soup, team2_abbr)
                             if team2_stats_df is not None:
                                 st.dataframe(team2_stats_df)
-
 
                         except IndexError:
                              st.error("Could not extract team abbreviations from the line score table.")
@@ -250,8 +246,7 @@ def main():
                         st.warning("Line score does not contain data for two teams to scrape individual stats.")
 
                 else:
-                    # Warning is already displayed in scrape_line_score
-                    pass # Do nothing here if line score failed
+                    st.warning("Could not display line score. Cannot proceed to scrape team stats.")
 
 
                 # --- Placeholder Sections for other charts ---
