@@ -157,7 +157,7 @@ def scrape_team_basic_stats(soup, team_abbr):
         return None
 
 
-# The main function is updated to simplify the Top Scorers headers
+# The main function is updated to include Player of the Game logic
 def main():
     """
     Streamlit app for analyzing box scores.
@@ -241,46 +241,53 @@ def main():
 
                 all_player_stats = []
 
-                # Process Team 1 stats
+                # Process Team 1 stats for Top Scorers and Player of the Game
                 if team1_stats_df is not None and team1_abbr:
-                    if 'Starters' in team1_stats_df.columns and 'PTS' in team1_stats_df.columns:
-                        team1_players = team1_stats_df[['Starters', 'PTS']].copy()
-                        team1_players = team1_players.rename(columns={'Starters': 'Player'})
-                        team1_players['Team'] = team1_abbr
-                        all_player_stats.append(team1_players)
+                    # Ensure necessary columns exist for both sections
+                    required_cols_top_scorers = ['Starters', 'PTS']
+                    required_cols_pog = ['Starters', 'GmSc', 'TRB', 'AST', 'STL', 'BLK', 'PTS']
+
+                    if all(col in team1_stats_df.columns for col in required_cols_top_scorers):
+                        team1_players_top_scorers = team1_stats_df[required_cols_top_scorers].copy()
+                        team1_players_top_scorers = team1_players_top_scorers.rename(columns={'Starters': 'Player'})
+                        team1_players_top_scorers['Team'] = team1_abbr
+                        all_player_stats.append(team1_players_top_scorers)
                     else:
-                        st.warning(f"Could not find 'Starters' or 'PTS' columns in {team1_abbr} stats.")
+                        st.warning(f"Missing required columns for Top Scorers in {team1_abbr} stats.")
 
 
-                # Process Team 2 stats
+                # Process Team 2 stats for Top Scorers and Player of the Game
                 if team2_stats_df is not None and team2_abbr:
-                    if 'Starters' in team2_stats_df.columns and 'PTS' in team2_stats_df.columns:
-                        team2_players = team2_stats_df[['Starters', 'PTS']].copy()
-                        team2_players = team2_players.rename(columns={'Starters': 'Player'})
-                        team2_players['Team'] = team2_abbr
-                        all_player_stats.append(team2_players)
-                    else:
-                         st.warning(f"Could not find 'Starters' or 'PTS' columns in {team2_abbr} stats.")
+                    required_cols_top_scorers = ['Starters', 'PTS']
+                    required_cols_pog = ['Starters', 'GmSc', 'TRB', 'AST', 'STL', 'BLK', 'PTS']
 
-                # Combine and sort stats if data was collected
+                    if all(col in team2_stats_df.columns for col in required_cols_top_scorers):
+                        team2_players_top_scorers = team2_stats_df[required_cols_top_scorers].copy()
+                        team2_players_top_scorers = team2_players_top_scorers.rename(columns={'Starters': 'Player'})
+                        team2_players_top_scorers['Team'] = team2_abbr
+                        all_player_stats.append(team2_players_top_scorers)
+                    else:
+                         st.warning(f"Missing required columns for Top Scorers in {team2_abbr} stats.")
+
+
+                # Combine and sort stats for Top Scorers if data was collected
                 if all_player_stats:
-                    combined_df = pd.concat(all_player_stats, ignore_index=True)
+                    combined_df_top_scorers = pd.concat(all_player_stats, ignore_index=True)
 
                     # Convert 'PTS' to numeric, handling errors
-                    combined_df['PTS'] = pd.to_numeric(combined_df['PTS'], errors='coerce').fillna(0)
+                    combined_df_top_scorers['PTS'] = pd.to_numeric(combined_df_top_scorers['PTS'], errors='coerce').fillna(0)
 
                     # Sort by PTS descending
-                    sorted_players_df = combined_df.sort_values(by='PTS', ascending=False)
+                    sorted_players_df_top_scorers = combined_df_top_scorers.sort_values(by='PTS', ascending=False)
 
                     # --- Filter for Top 5 with ties ---
-                    if len(sorted_players_df) > 0:
-                        if len(sorted_players_df) >= 5:
-                            fifth_player_pts = sorted_players_df.iloc[4]['PTS']
-                            top_scorers_df = sorted_players_df[sorted_players_df['PTS'] >= fifth_player_pts]
+                    if len(sorted_players_df_top_scorers) > 0:
+                        if len(sorted_players_df_top_scorers) >= 5:
+                            fifth_player_pts = sorted_players_df_top_scorers.iloc[4]['PTS']
+                            top_scorers_df = sorted_players_df_top_scorers[sorted_players_df_top_scorers['PTS'] >= fifth_player_pts]
                         else:
-                            top_scorers_df = sorted_players_df
+                            top_scorers_df = sorted_players_df_top_scorers
 
-                        # Removed: st.subheader("Top Scorers (including ties with 5th place)")
                         st.dataframe(top_scorers_df)
                     else:
                         st.info("No player stats available to determine top scorers.")
@@ -291,8 +298,62 @@ def main():
 
                 # --- Player of the Game Section ---
                 st.header("Player of the Game")
-                st.write("Section to highlight the Player of the Game.")
-                st.warning("Logic for determining Player of the Game is not yet implemented.")
+
+                pog_candidates_list = []
+
+                # Process Team 1 stats for Player of the Game
+                if team1_stats_df is not None and team1_abbr:
+                    required_cols_pog = ['Starters', 'GmSc', 'TRB', 'AST', 'STL', 'BLK', 'PTS']
+                    if all(col in team1_stats_df.columns for col in required_cols_pog):
+                        # Select all required columns for POG consideration
+                        team1_players_pog = team1_stats_df[required_cols_pog].copy()
+                        team1_players_pog = team1_players_pog.rename(columns={'Starters': 'Player'})
+                        pog_candidates_list.append(team1_players_pog)
+                    else:
+                         st.warning(f"Missing required columns for Player of the Game in {team1_abbr} stats.")
+
+
+                # Process Team 2 stats for Player of the Game
+                if team2_stats_df is not None and team2_abbr:
+                    required_cols_pog = ['Starters', 'GmSc', 'TRB', 'AST', 'STL', 'BLK', 'PTS']
+                    if all(col in team2_stats_df.columns for col in required_cols_pog):
+                        # Select all required columns for POG consideration
+                        team2_players_pog = team2_stats_df[required_cols_pog].copy()
+                        team2_players_pog = team2_players_pog.rename(columns={'Starters': 'Player'})
+                        pog_candidates_list.append(team2_players_pog)
+                    else:
+                         st.warning(f"Missing required columns for Player of the Game in {team2_abbr} stats.")
+
+
+                # Determine and display Player of the Game if data was collected
+                if pog_candidates_list:
+                    combined_pog_candidates_df = pd.concat(pog_candidates_list, ignore_index=True)
+
+                    # Convert 'GmSc' to numeric, handling errors
+                    combined_pog_candidates_df['GmSc'] = pd.to_numeric(combined_pog_candidates_df['GmSc'], errors='coerce').fillna(0)
+
+                    # Find the player with the highest Game Score
+                    if len(combined_pog_candidates_df) > 0:
+                        # Find index of the max GmSc
+                        player_of_the_game_index = combined_pog_candidates_df['GmSc'].idxmax()
+
+                        # Get the row for the Player of the Game
+                        player_of_the_game_row = combined_pog_candidates_df.loc[player_of_the_game_index]
+
+                        # Select and display the requested columns for POG
+                        pog_display_cols = ['Player', 'TRB', 'AST', 'STL', 'BLK', 'PTS', 'GmSc'] # Include GmSc for context
+                        player_of_the_game_stats = player_of_the_game_row[pog_display_cols]
+
+                        # Convert the Series to a DataFrame for display
+                        player_of_the_game_df = player_of_the_game_stats.to_frame().T # Transpose to get one row, multiple columns
+
+                        st.subheader("Based on Game Score (GmSc)")
+                        st.dataframe(player_of_the_game_df)
+                    else:
+                        st.info("No player stats available to determine Player of the Game.")
+
+                else:
+                    st.info("Player stats could not be processed for Player of the Game.")
 
 
             except requests.exceptions.RequestException as e:
