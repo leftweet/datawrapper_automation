@@ -506,7 +506,7 @@ def main():
                         team2_players_top_scorers['Team'] = team2_abbr
                         all_player_stats.append(team2_players_top_scorers)
                     else:
-                         st.warning(f"Missing required columns for Top Scorers in {team2_abbr} stats.")
+                         st.warning(f"Missing required columns for Player of the Game in {team2_abbr} stats.")
 
                 if all_player_stats:
                     combined_df_top_scorers = pd.concat(all_player_stats, ignore_index=True)
@@ -552,7 +552,7 @@ def main():
 
                     if len(combined_pog_candidates_df) > 0:
                         player_of_the_game_index = combined_pog_candidates_df['GmSc'].idxmax()
-                        player_of_the_game_row = combined_pog_candidates_df.loc[player_of_the_game_index]
+                        player_of_the_the_game_row = combined_pog_candidates_df.loc[player_of_the_game_index]
                         pog_display_cols = ['Player', 'TRB', 'AST', 'STL', 'BLK', 'PTS', 'GmSc']
                         player_of_the_game_stats = player_of_the_game_row[pog_display_cols]
                         player_of_the_game_df = player_of_the_game_stats.to_frame().T
