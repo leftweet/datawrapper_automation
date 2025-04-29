@@ -389,7 +389,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
             responsive_iframe_code = embed_codes["embed-method-responsive"]
             st.subheader("Datawrapper Game Flow Chart")
             # Use st.components.v1.html to embed the iframe
-            # Set a reasonable height, adjust as needed
+            # Increased height slightly
             components.html(responsive_iframe_code, height=450)
 
             # Optionally, keep the chart URL available as text
