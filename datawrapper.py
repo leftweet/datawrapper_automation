@@ -156,19 +156,19 @@ def scrape_team_basic_stats(soup, team_abbr):
         st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
         return None
 
-# Updated function to scrape only column 4 from PBP table starting from the 3rd row,
-# skipping rows where columns 3 and 5 are blank.
+# Updated function to scrape the score margin from column 4 of the PBP table,
+# starting from the 3rd row and skipping rows where columns 3 and 5 are blank.
 @st.cache_data(ttl=600) # Add caching decorator (cache for 10 minutes)
 def scrape_play_by_play(original_url):
     """
-    Scrapes only column 4 from the Play-by-Play table starting from the 3rd row,
+    Scrapes the score margin from column 4 of the Play-by-Play table starting from the 3rd row,
     skipping rows where columns 3 and 5 are blank.
 
     Args:
         original_url (str): The original box score URL.
 
     Returns:
-        pandas.DataFrame or None: A DataFrame containing the selected PBP data,
+        pandas.DataFrame or None: A DataFrame containing the score margin data,
                                   or None if scraping fails or the table is not found.
     """
     # Construct the PBP URL
@@ -187,7 +187,7 @@ def scrape_play_by_play(original_url):
         pbp_table = find_element_in_soup(soup, 'table', table_id)
 
         if pbp_table:
-            # Find all rows directly within the table, as tbody might not be present
+            # Find all rows directly within the table
             all_trs = pbp_table.find_all('tr')
 
             data = []
@@ -201,27 +201,39 @@ def scrape_play_by_play(original_url):
 
                     # Need at least 5 cells to check columns 3 (idx 2) and 5 (idx 4) and extract column 4 (idx 3)
                     if len(row_cells) >= 5:
-                        # Safely get cell text for columns 3 and 5 for the skipping condition
+                        # Safely get cell text for columns 3, 4, and 5
                         col3_text = row_cells[2].get_text().strip() if len(row_cells) > 2 and row_cells[2] else ""
+                        score_text = row_cells[3].get_text().strip() if len(row_cells) > 3 and row_cells[3] else ""
                         col5_text = row_cells[4].get_text().strip() if len(row_cells) > 4 and row_cells[4] else ""
-
 
                         # Skip row if column 3 AND column 5 are both blank
                         if col3_text == "" and col5_text == "":
                              continue # Skip this row
 
-                        # If not skipped, extract only column 4 (index 3)
-                        col4_text = row_cells[3].get_text().strip() if len(row_cells) > 3 and row_cells[3] else ""
-                        data.append([col4_text]) # Append a list with only column 4 data
+                        # Process the score text to calculate the margin
+                        margin = "N/A" # Default value if score format is unexpected
+                        if score_text and '-' in score_text:
+                            scores = score_text.split('-')
+                            if len(scores) == 2 and scores[0].isdigit() and scores[1].isdigit():
+                                try:
+                                    home_score = int(scores[0])
+                                    away_score = int(scores[1])
+                                    margin = home_score - away_score
+                                except ValueError:
+                                    # Should not happen if isdigit() is true, but as a safeguard
+                                    pass
+
+
+                        data.append([margin]) # Append a list with only the calculated margin
 
 
                 if data: # Check if data was extracted
-                    # No headers needed based on user request, pandas will assign default columns
+                    # No headers needed, pandas will assign default columns (0)
                     df = pd.DataFrame(data)
                     st.success("PBP data processing complete.")
                     return df
                 else:
-                    st.warning(f"No data extracted from column 4 starting from the 3rd row of the PBP table (after skipping rows where columns 3 and 5 were both blank).")
+                    st.warning(f"No score margin data extracted from the PBP table starting from the 3rd row (after skipping rows where columns 3 and 5 were both blank or score format was invalid).")
                     return None
             else:
                 st.warning(f"PBP table has fewer than 3 'tr' rows ({len(all_trs)}). Cannot start extraction from the 3rd row.")
