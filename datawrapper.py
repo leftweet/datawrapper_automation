@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from bs4.element import Comment # Import Comment
 import pandas as pd
 
-# (Keep find_element_in_soup function as is)
+# (Keep find_element_in_soup, scrape_line_score, and scrape_team_basic_stats functions as they are)
 def find_element_in_soup(soup, element_type, element_id):
     """
     Finds an element by its type and ID within a BeautifulSoup object,
@@ -156,12 +156,12 @@ def scrape_team_basic_stats(soup, team_abbr):
         st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
         return None
 
-# Updated function to scrape Play-by-Play table with debug output and disabled caching
+# Updated function to scrape Play-by-Play table by finding header row within the table body
 @st.cache_data(ttl=600) # Add caching decorator (cache for 10 minutes)
 def scrape_play_by_play(original_url):
     """
     Scrapes the Play-by-Play table from a basketball-reference.com PBP URL.
-    Includes debug output.
+    Includes debug output and robust header finding within the table body.
 
     Args:
         original_url (str): The original box score URL.
@@ -190,91 +190,92 @@ def scrape_play_by_play(original_url):
 
         if pbp_table:
             st.text(f"Found PBP table with ID '{table_id}'. Attempting to extract data...")
-            try:
-                # Extract table headers
-                headers = []
-                header_row_element = None
+            headers = []
+            header_row_element = None
+            all_trs = pbp_table.find_all('tr') # Find all rows in the table (including tbody)
 
-                thead = pbp_table.find('thead')
-                if thead:
-                     header_rows = thead.find_all('tr')
-                     st.text(f"Found {len(header_rows)} rows in the PBP thead.")
-                     for i, row in enumerate(header_rows):
-                         row_cells = row.find_all(['th', 'td'])
-                         cell_texts = [cell.get_text().strip() for cell in row_cells]
-                         st.text(f"Checking PBP thead row {i+1}: {cell_texts}")
-                         # Look for characteristic headers like 'Time' and 'Score'
-                         if 'Time' in cell_texts and 'Score' in cell_texts:
-                             headers = cell_texts
-                             header_row_element = row
-                             st.text(f"Identified PBP header row {i+1} containing 'Time' and 'Score'.")
-                             break # Found the header row
+            st.text(f"Found {len(all_trs)} total rows in PBP table.")
 
+            # --- Robust Header Extraction from all rows (looking for class='thead' and content) ---
+            for i, row in enumerate(all_trs):
+                 # Check if the row has the class 'thead'
+                 is_thead_class = 'thead' in row.get('class', [])
+                 st.text(f"Checking PBP row {i+1} (class='thead': {is_thead_class}): {row.get_text().strip()}") # Debug row content
 
-                st.text(f"PBP Header row identified: {header_row_element is not None}")
-                if not header_row_element:
-                     st.warning(f"Could not identify a suitable header row in the PBP thead.")
-                     # If headers aren't found, we can't create a DataFrame with meaningful columns
-                     return None
+                 if is_thead_class:
+                     row_cells = row.find_all(['th', 'td'])
+                     cell_texts = [cell.get_text().strip() for cell in row_cells]
+                     st.text(f"Checking PBP row {i+1} cell texts: {cell_texts}")
+                     # Look for characteristic headers like 'Time' and 'Score'
+                     if 'Time' in cell_texts and 'Score' in cell_texts:
+                         headers = cell_texts
+                         header_row_element = row
+                         st.text(f"Identified PBP header row {i+1} containing 'Time' and 'Score' with class='thead'.")
+                         break # Found the header row
 
 
-                st.text(f"Extracted Headers: {headers}")
-
-                # --- Data extraction ---
-                data = []
-                if pbp_table.find('tbody'): # Ensure tbody exists
-                    tbody_rows = pbp_table.select('tbody tr')
-                    st.text(f"Found {len(tbody_rows)} rows in the PBP tbody.")
-                    for i, row in enumerate(tbody_rows):
-                        # Skip quarter break rows if they have an id like 'q1', 'q2', etc.
-                        if 'q' in row.get('id', ''):
-                            st.text(f"Skipping PBP tbody row {i+1} with ID like 'q'.")
-                            continue
-
-                        row_cells = row.find_all(['th', 'td'])
-                        # Skip empty rows or rows that don't look like a play (e.g., few cells)
-                        # A typical play row should have at least 3 cells (Time, Event/Team, Score/Description)
-                        if not row_cells or len(row_cells) < 3:
-                            st.text(f"Skipping PBP tbody row {i+1} with insufficient cells ({len(row_cells)}).")
-                            continue
-
-                        row_data = [cell.get_text().strip() for cell in row_cells]
-                        data.append(row_data)
-                        # Optional: print first few data rows
-                        # if len(data) <= 5:
-                        #     st.text(f"PBP data row {len(data)}: {row_data}")
+            st.text(f"PBP Header row identified: {header_row_element is not None}")
+            if not header_row_element:
+                 st.warning(f"Could not identify a suitable header row in the PBP table (looking for class='thead' and content).")
+                 return None # Cannot proceed without headers
 
 
-                st.text(f"Total PBP data rows extracted: {len(data)}")
+            st.text(f"Extracted Headers: {headers}")
 
-                if data: # Check if data was extracted (headers check is above)
-                    max_cols = len(headers) # Use header length for expected columns
-                    st.text(f"Expected number of PBP columns: {max_cols}")
+            # --- Data extraction from tbody, skipping header row and quarter headers ---
+            data = []
+            tbody = pbp_table.find('tbody')
+            if tbody:
+                tbody_rows = tbody.find_all('tr')
+                st.text(f"Found {len(tbody_rows)} rows in the PBP tbody for data extraction.")
+                for i, row in enumerate(tbody_rows):
+                    # Skip the identified header row element if it's found in tbody
+                    if row == header_row_element:
+                         st.text(f"Skipping identified header row in tbody.")
+                         continue
+
+                    # Skip quarter break rows if they have an id like 'q1', 'q2', etc.
+                    if 'q' in row.get('id', ''):
+                         st.text(f"Skipping PBP tbody row {i+1} with ID like 'q'.")
+                         continue
+
+                    row_cells = row.find_all(['th', 'td'])
+                    # Skip empty rows or rows that don't look like a play (e.g., few cells)
+                    # A typical play row should have at least 3 cells (Time, Event/Team, Score/Description)
+                    if not row_cells or len(row_cells) < 3:
+                        st.text(f"Skipping PBP tbody row {i+1} with insufficient cells ({len(row_cells)}).")
+                        continue
+
+                    row_data = [cell.get_text().strip() for cell in row_cells]
+                    data.append(row_data)
+                    # Optional: print first few data rows
+                    # if len(data) <= 5:
+                    #     st.text(f"PBP data row {len(data)}: {row_data}")
 
 
-                    # Ensure data rows have the same number of columns (pad if necessary)
-                    # Pad data rows to match the number of headers
-                    padded_data = []
-                    for i, row in enumerate(data):
-                         padded_row = row + [None] * (max_cols - len(row))
-                         # If a row is unexpectedly longer than headers, truncate it.
-                         if len(padded_row) > max_cols:
-                             st.text(f"Truncating PBP data row {i+1} (length {len(row)}) to match header count ({max_cols}).")
-                             padded_row = padded_row[:max_cols]
-                         padded_data.append(padded_row)
+            st.text(f"Total PBP data rows extracted: {len(data)}")
+
+            if data: # Check if data was extracted (headers check is above)
+                max_cols = len(headers) # Use header length for expected columns
+                st.text(f"Expected number of PBP columns: {max_cols}")
+
+                # Ensure data rows have the same number of columns (pad/truncate if necessary)
+                padded_data = []
+                for i, row in enumerate(data):
+                     padded_row = row + [None] * (max_cols - len(row))
+                     if len(padded_row) > max_cols:
+                          st.text(f"Truncating PBP data row {i+1} (length {len(row)}) to match header count ({max_cols}).")
+                          padded_row = padded_row[:max_cols]
+                     padded_data.append(padded_row)
 
 
-                    st.success("PBP Headers and data processing complete.")
-                    df = pd.DataFrame(padded_data, columns=headers) # Use extracted headers as columns
-                    st.text("PBP DataFrame created.")
-                    st.text("Returning PBP DataFrame.") # New debug message before return
-                    return df
-                else:
-                    st.warning(f"No valid data rows extracted from the '{table_id}' table on the PBP page.")
-                    return None
-
-            except Exception as e:
-                st.error(f"An error occurred while parsing the PBP table content for '{table_id}': {e}")
+                st.success("PBP Headers and data processing complete.")
+                df = pd.DataFrame(padded_data, columns=headers) # Use extracted headers as columns
+                st.text("PBP DataFrame created.")
+                st.text("Returning PBP DataFrame.") # Debug message
+                return df
+            else:
+                st.warning(f"No valid data rows extracted from the '{table_id}' table on the PBP page.")
                 return None
 
         else:
@@ -289,7 +290,7 @@ def scrape_play_by_play(original_url):
         return None
 
 
-# The main function is updated to include PBP scraping and display
+# The main function remains the same in how it calls scrape_play_by_play
 def main():
     """
     Streamlit app for analyzing box scores.
@@ -313,7 +314,7 @@ def main():
         if box_score_url:
             st.success(f"Processing URL: {box_score_url}")
 
-            # Fetch the page content once for box score data
+            # Fetch the page content once for box score data (needed for line score and basic stats)
             try:
                 response = requests.get(box_score_url)
                 response.raise_for_status() # Raise an exception for bad status codes
