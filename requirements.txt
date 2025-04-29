@@ -3,3 +3,6 @@ praw
 pandas
 requests
 beautifulsoup4
+json
+os
+csv
