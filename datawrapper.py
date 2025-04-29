@@ -156,11 +156,12 @@ def scrape_team_basic_stats(soup, team_abbr):
         st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
         return None
 
-# Updated function to scrape columns 5, 6, and 7 from PBP table starting from the 3rd row
+# Updated function to scrape columns 5, 6, and 7 from PBP table with debug output
 @st.cache_data(ttl=600) # Add caching decorator (cache for 10 minutes)
 def scrape_play_by_play(original_url):
     """
     Scrapes columns 5, 6, and 7 from the Play-by-Play table starting from the 3rd row.
+    Includes debug output.
 
     Args:
         original_url (str): The original box score URL.
@@ -174,7 +175,7 @@ def scrape_play_by_play(original_url):
     table_id = 'pbp' # ID of the Play-by-Play table
 
     st.subheader("Play-by-Play") # Add subheader for the PBP table
-    # Removed debug: st.text(f"Attempting to fetch PBP URL: {pbp_url}")
+    st.text(f"Attempting to fetch PBP URL: {pbp_url}")
 
     try:
         # Fetch the PBP page content
@@ -182,44 +183,59 @@ def scrape_play_by_play(original_url):
         response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        # Removed debug: st.text(f"Successfully fetched PBP page.")
+        st.text(f"Successfully fetched PBP page.")
 
         # Find the PBP table by its ID, handling comments
         pbp_table = find_element_in_soup(soup, 'table', table_id)
 
         if pbp_table:
-            # Removed debug: st.text(f"Found PBP table with ID '{table_id}'. Attempting to extract data...")
+            st.text(f"Found PBP table with ID '{table_id}'. Attempting to extract data...")
 
             data = []
             tbody = pbp_table.find('tbody') # Data rows are expected in tbody
+
             if tbody:
                 tbody_rows = tbody.find_all('tr')
-                # Removed debug: st.text(f"Found {len(tbody_rows)} rows in the PBP tbody.")
+                st.text(f"Found {len(tbody_rows)} total rows in the PBP tbody.")
 
                 # Start iterating from the 3rd row (index 2)
-                for i, row in enumerate(tbody_rows[2:]): # Slice from index 2 to the end
-                    row_cells = row.find_all(['th', 'td'])
-                    # Check if the row has at least 7 cells to extract columns 5, 6, and 7 (indices 4, 5, 6)
-                    if len(row_cells) >= 7:
-                        col5_text = row_cells[4].get_text().strip()
-                        col6_text = row_cells[5].get_text().strip()
-                        col7_text = row_cells[6].get_text().strip()
-                        data.append([col5_text, col6_text, col7_text])
-                    # Removed debug for skipping rows
+                # Ensure there are at least 3 rows to start from the 3rd
+                if len(tbody_rows) >= 3:
+                    st.text(f"Starting data extraction from the 3rd row (index 2) of {len(tbody_rows)} tbody rows.")
+                    for i, row in enumerate(tbody_rows[2:]): # Slice from index 2 to the end
+                        row_cells = row.find_all(['th', 'td'])
+                        st.text(f"Processing tbody row index {i+2} (actual index {i+2}): Found {len(row_cells)} cells.") # Debug current row and cell count
 
+                        # Check if the row has at least 7 cells to extract columns 5, 6, and 7 (indices 4, 5, 6)
+                        if len(row_cells) >= 7:
+                            col5_text = row_cells[4].get_text().strip()
+                            col6_text = row_cells[5].get_text().strip()
+                            col7_text = row_cells[6].get_text().strip()
+                            data.append([col5_text, col6_text, col7_text])
+                            st.text(f"  - Extracted columns 5, 6, 7: [{col5_text}, {col6_text}, {col7_text}]") # Debug extracted data
 
-                # Removed debug: st.text(f"Total PBP data rows extracted: {len(data)}")
+                        else:
+                            st.text(f"  - Skipping row {i+2} (actual index {i+2}): Insufficient cells ({len(row_cells)} < 7).") # Debug skipping reason
 
-                if data: # Check if data was extracted
-                    # No headers needed based on user request, pandas will assign default columns
-                    df = pd.DataFrame(data)
-                    # Removed debug: st.success("PBP data processing complete.")
-                    # Removed debug: st.text("PBP DataFrame created.")
-                    # Removed debug: st.text("Returning PBP DataFrame.")
-                    return df
+                    st.text(f"Total PBP data rows extracted: {len(data)}")
+
+                    if data: # Check if data was extracted
+                        df = pd.DataFrame(data)
+                        st.success("PBP data processing complete.")
+                        # Removed debug: st.text("PBP DataFrame created.")
+                        # Removed debug: st.text("Returning PBP DataFrame.")
+                        return df
+                    else:
+                        st.warning(f"No data extracted from columns 5, 6, and 7 starting from the 3rd row of the PBP table.")
+                        return None
                 else:
-                    st.warning(f"No data extracted from columns 5, 6, and 7 starting from the 3rd row of the PBP table.")
+                    st.warning(f"PBP tbody has fewer than 3 rows ({len(tbody_rows)}). Cannot start extraction from the 3rd row.")
                     return None
+
+
+            else:
+                st.warning(f"Could not find the 'tbody' within the '{table_id}' table on the PBP page.")
+                return None
 
         else:
             st.warning(f"Could not find the '{table_id}' table on the PBP page.")
