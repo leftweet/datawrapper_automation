@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from bs4.element import Comment # Import Comment
 import pandas as pd
 
-# (Keep find_element_in_soup, scrape_line_score, and scrape_team_basic_stats functions as they are)
+# (Keep find_element_in_soup function as is)
 def find_element_in_soup(soup, element_type, element_id):
     """
     Finds an element by its type and ID within a BeautifulSoup object,
@@ -32,7 +32,7 @@ def find_element_in_soup(soup, element_type, element_id):
 
     return element
 
-
+# (Keep scrape_line_score function as is)
 def scrape_line_score(soup):
     """
     Scrapes the line score table from a BeautifulSoup object.
@@ -71,7 +71,7 @@ def scrape_line_score(soup):
     else:
         return None
 
-
+# (Keep scrape_team_basic_stats function as is)
 def scrape_team_basic_stats(soup, team_abbr):
     """
     Scrapes the basic box score stats table for a specific team by finding its container div.
@@ -156,8 +156,90 @@ def scrape_team_basic_stats(soup, team_abbr):
         st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
         return None
 
+# New function to scrape Play-by-Play table
+def scrape_play_by_play(original_url):
+    """
+    Scrapes the Play-by-Play table from a basketball-reference.com PBP URL.
 
-# The main function is updated to remove the Player of the Game subheader
+    Args:
+        original_url (str): The original box score URL.
+
+    Returns:
+        pandas.DataFrame or None: A DataFrame containing the Play-by-Play data,
+                                  or None if scraping fails or the table is not found.
+    """
+    # Construct the PBP URL
+    pbp_url = original_url.replace("/boxscores/", "/boxscores/pbp/")
+    table_id = 'pbp' # ID of the Play-by-Play table
+
+    st.subheader("Play-by-Play") # Add subheader for the PBP table
+
+    try:
+        # Fetch the PBP page content
+        response = requests.get(pbp_url)
+        response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Find the PBP table by its ID, handling comments
+        pbp_table = find_element_in_soup(soup, 'table', table_id)
+
+        if pbp_table:
+            try:
+                # Extract table headers
+                headers = []
+                # The main headers for the PBP table are usually in the second tr of the thead
+                # Based on the screenshot, the first tr is a multi-quarter header.
+                header_row = pbp_table.select_one('thead tr:nth-of-type(2)')
+                if header_row:
+                     headers = [th.get_text().strip() for th in header_row.find_all(['th', 'td'])]
+                     # Clean up headers - remove empty ones or specific unwanted text if any
+                     headers = [h for h in headers if h] # Keep only non-empty headers
+
+
+                # Extract table rows (play-by-play events)
+                data = []
+                if pbp_table.find('tbody'): # Ensure tbody exists
+                    for row in pbp_table.select('tbody tr'):
+                        row_cells = row.find_all(['th', 'td'])
+                        # Skip empty rows or rows that don't represent a play
+                        if not row_cells or row_cells[0].get_text().strip() == '':
+                            continue
+                        # Also skip quarter break rows if they exist and are structured differently
+                        if 'q' in row.get('id', ''): # Rows with id like 'q1', 'q2', etc. are usually quarter headers
+                             continue
+
+                        row_data = [cell.get_text().strip() for cell in row_cells]
+                        data.append(row_data)
+
+                if headers and data:
+                    # Ensure data rows have the same number of columns as headers
+                    # PBP tables can be complex; simple padding might not always work perfectly.
+                    # We'll pad for now, but might need more specific logic if issues arise.
+                    max_cols = len(headers)
+                    padded_data = [row + [None] * (max_cols - len(row)) for row in data]
+
+                    df = pd.DataFrame(padded_data, columns=headers)
+                    return df
+                else:
+                    st.warning(f"Could not extract headers or data from the '{table_id}' table on the PBP page.")
+                    return None
+            except Exception as e:
+                st.error(f"Error parsing '{table_id}' table on PBP page: {e}")
+                return None
+
+        else:
+            st.warning(f"Could not find the '{table_id}' table on the PBP page.")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching the PBP URL: {e}")
+        return None
+    except Exception as e:
+        st.error(f"An unexpected error occurred during PBP scraping: {e}")
+        return None
+
+
+# The main function is updated to include PBP scraping and display
 def main():
     """
     Streamlit app for analyzing box scores.
@@ -181,7 +263,7 @@ def main():
         if box_score_url:
             st.success(f"Processing URL: {box_score_url}")
 
-            # Fetch the page content once
+            # Fetch the page content once for box score data
             try:
                 response = requests.get(box_score_url)
                 response.raise_for_status() # Raise an exception for bad status codes
@@ -190,8 +272,16 @@ def main():
                 # --- Team Trends Section ---
                 st.header("Team Trends")
 
-                # Scrape and display the line score table
-                st.subheader("Line Score")
+                # Scrape and display the Play-by-Play table FIRST
+                pbp_df = scrape_play_by_play(box_score_url)
+                if pbp_df is not None:
+                    st.dataframe(pbp_df)
+                else:
+                    # Warning is displayed inside scrape_play_by_play
+                    pass # Do nothing here if PBP failed
+
+
+                # Scrape and display the line score table (already has subheader inside function)
                 line_score_df = scrape_line_score(soup)
 
                 # Variables to hold team stats dataframes and abbreviations
@@ -237,13 +327,12 @@ def main():
 
 
                 # --- Top Scorers Section ---
-                st.header("Top Scorers") # Changed header text
+                st.header("Top Scorers")
 
                 all_player_stats = []
 
                 # Process Team 1 stats for Top Scorers and Player of the Game
                 if team1_stats_df is not None and team1_abbr:
-                    # Ensure necessary columns exist for both sections
                     required_cols_top_scorers = ['Starters', 'PTS']
                     # required_cols_pog defined later in POG section
 
@@ -346,7 +435,6 @@ def main():
                         # Convert the Series to a DataFrame for display
                         player_of_the_game_df = player_of_the_game_stats.to_frame().T # Transpose to get one row, multiple columns
 
-                        # Removed: st.subheader("Based on Game Score (GmSc)")
                         st.dataframe(player_of_the_game_df)
                     else:
                         st.info("No player stats available to determine Player of the Game.")
