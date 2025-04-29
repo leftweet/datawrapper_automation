@@ -209,12 +209,12 @@ def scrape_play_by_play(original_url):
                     # Check if the row has at least 7 cells to extract columns 5, 6, and 7 (indices 4, 5, 6)
                     if len(row_cells) >= 5:
                         # Safely get cell text, handle cases where cells might be None if structure is inconsistent
-                        col3_text = row_cells[3].get_text().strip() if len(row_cells) > 4 and row_cells[4] else ""
-                        col4_text = row_cells[4].get_text().strip() if len(row_cells) > 5 and row_cells[5] else ""
-                        col5_text = row_cells[5].get_text().strip() if len(row_cells) > 6 and row_cells[6] else ""
+                        col3_text = row_cells[3].get_text().strip() if len(row_cells) > 2 and row_cells[3] else ""
+                        col4_text = row_cells[4].get_text().strip() if len(row_cells) > 3 and row_cells[4] else ""
+                        col5_text = row_cells[5].get_text().strip() if len(row_cells) > 4 and row_cells[5] else ""
 
                         data.append([col3_text, col4_text, col5_text])
-                        st.text(f"  - Extracted columns 3, 4, 5: [{col5_text}, {col6_text}, {col7_text}]") # Debug extracted data
+                        st.text(f"  - Extracted columns 3, 4, 5: [{col3_text}, {col4_text}, {col5_text}]") # Debug extracted data
 
                     else:
                         st.text(f"  - Skipping row {i+2} (actual index {i+2}): Insufficient cells ({len(row_cells)} < 6) for desired columns.") # Debug skipping reason
