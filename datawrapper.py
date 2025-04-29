@@ -45,7 +45,7 @@ def find_element_in_soup(soup, element_type, element_id):
          comments = soup.find_all(string=lambda text: isinstance(text, Comment))
          for comment in comments:
              comment_soup = BeautifulSoup(comment, 'html.parser')
-             element = comment_soup.find(element_type, id=element_id)
+             element = comment_soup.find(element_type, id=element_soup)
              if element:
                  break
     return element
@@ -206,7 +206,7 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
 def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
     Creates a Datawrapper chart from a pandas DataFrame and publishes it.
-    Embeds the responsive iframe in the Streamlit app.
+    Fetches and embeds the responsive iframe in the Streamlit app using a GET request.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
@@ -217,6 +217,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     # Define temporary CSV filename
     csv_filename = f"pbp_data_{team1_abbr}_{team2_abbr}.csv"
     chart_url = None # Initialize chart_url
+    chart_id = None # Initialize chart_id
 
     try:
         # Save DataFrame to temporary CSV
@@ -366,15 +367,22 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         publish_response.raise_for_status()
         st.success("Chart published!")
 
-        # Extract embed codes from the publish response
-        publish_data = publish_response.json()
-        embed_codes = publish_data.get("embed-codes")
+        # Step 6: Get chart properties (including embed codes) using GET request
+        st.info(f"Fetching chart properties for ID: {chart_id}...")
+        get_chart_url = f"{BASE_URL}/charts/{chart_id}"
+        get_chart_response = requests.get(get_chart_url, headers={'Authorization': f'Bearer {API_TOKEN}'})
+        get_chart_response.raise_for_status()
+        st.success("Chart properties fetched successfully.")
+
+        chart_data = get_chart_response.json()
+        embed_codes = chart_data.get("embed-codes")
 
         if embed_codes and "embed-method-responsive" in embed_codes:
             responsive_iframe_code = embed_codes["embed-method-responsive"]
             st.subheader("Datawrapper Game Flow Chart")
             # Use st.components.v1.html to embed the iframe
-            components.html(responsive_iframe_code, height=450) # Adjust height as needed
+            # Set a reasonable height, adjust as needed
+            components.html(responsive_iframe_code, height=450)
 
             # Optionally, keep the chart URL available as text
             chart_url = f"https://www.datawrapper.de/_/{chart_id}"
@@ -552,7 +560,7 @@ def main():
 
                     if len(combined_pog_candidates_df) > 0:
                         player_of_the_game_index = combined_pog_candidates_df['GmSc'].idxmax()
-                        player_of_the_the_game_row = combined_pog_candidates_df.loc[player_of_the_game_index]
+                        player_of_the_game_row = combined_pog_candidates_df.loc[player_of_the_game_index]
                         pog_display_cols = ['Player', 'TRB', 'AST', 'STL', 'BLK', 'PTS', 'GmSc']
                         player_of_the_game_stats = player_of_the_game_row[pog_display_cols]
                         player_of_the_game_df = player_of_the_game_stats.to_frame().T
