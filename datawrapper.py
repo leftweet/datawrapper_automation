@@ -157,7 +157,7 @@ def scrape_team_basic_stats(soup, team_abbr):
         return None
 
 
-# The main function is updated to include Player of the Game logic
+# The main function is updated to remove the Player of the Game subheader
 def main():
     """
     Streamlit app for analyzing box scores.
@@ -245,7 +245,7 @@ def main():
                 if team1_stats_df is not None and team1_abbr:
                     # Ensure necessary columns exist for both sections
                     required_cols_top_scorers = ['Starters', 'PTS']
-                    required_cols_pog = ['Starters', 'GmSc', 'TRB', 'AST', 'STL', 'BLK', 'PTS']
+                    # required_cols_pog defined later in POG section
 
                     if all(col in team1_stats_df.columns for col in required_cols_top_scorers):
                         team1_players_top_scorers = team1_stats_df[required_cols_top_scorers].copy()
@@ -259,7 +259,7 @@ def main():
                 # Process Team 2 stats for Top Scorers and Player of the Game
                 if team2_stats_df is not None and team2_abbr:
                     required_cols_top_scorers = ['Starters', 'PTS']
-                    required_cols_pog = ['Starters', 'GmSc', 'TRB', 'AST', 'STL', 'BLK', 'PTS']
+                    # required_cols_pog defined later in POG section
 
                     if all(col in team2_stats_df.columns for col in required_cols_top_scorers):
                         team2_players_top_scorers = team2_stats_df[required_cols_top_scorers].copy()
@@ -268,7 +268,6 @@ def main():
                         all_player_stats.append(team2_players_top_scorers)
                     else:
                          st.warning(f"Missing required columns for Top Scorers in {team2_abbr} stats.")
-
 
                 # Combine and sort stats for Top Scorers if data was collected
                 if all_player_stats:
@@ -347,7 +346,7 @@ def main():
                         # Convert the Series to a DataFrame for display
                         player_of_the_game_df = player_of_the_game_stats.to_frame().T # Transpose to get one row, multiple columns
 
-                        st.subheader("Based on Game Score (GmSc)")
+                        # Removed: st.subheader("Based on Game Score (GmSc)")
                         st.dataframe(player_of_the_game_df)
                     else:
                         st.info("No player stats available to determine Player of the Game.")
