@@ -156,11 +156,12 @@ def scrape_team_basic_stats(soup, team_abbr):
         st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
         return None
 
-# Updated function to scrape columns 3, 4, and 5 from PBP table by finding all tr directly
+# Updated function to scrape only column 4 from PBP table starting from the 3rd row,
+# skipping rows where columns 3 and 5 are blank.
 @st.cache_data(ttl=600) # Add caching decorator (cache for 10 minutes)
 def scrape_play_by_play(original_url):
     """
-    Scrapes columns 3, 4, and 5 from the Play-by-Play table starting from the 3rd row,
+    Scrapes only column 4 from the Play-by-Play table starting from the 3rd row,
     skipping rows where columns 3 and 5 are blank.
 
     Args:
@@ -198,18 +199,20 @@ def scrape_play_by_play(original_url):
                 for row in all_trs[2:]:
                     row_cells = row.find_all(['th', 'td'])
 
-                    # Check if the row has at least 5 cells to extract columns 3, 4, and 5 (indices 2, 3, 4)
+                    # Need at least 5 cells to check columns 3 (idx 2) and 5 (idx 4) and extract column 4 (idx 3)
                     if len(row_cells) >= 5:
-                        # Safely get cell text, handle cases where cells might be None if structure is inconsistent
+                        # Safely get cell text for columns 3 and 5 for the skipping condition
                         col3_text = row_cells[2].get_text().strip() if len(row_cells) > 2 and row_cells[2] else ""
-                        col4_text = row_cells[3].get_text().strip() if len(row_cells) > 3 and row_cells[3] else ""
                         col5_text = row_cells[4].get_text().strip() if len(row_cells) > 4 and row_cells[4] else ""
 
-                        # *** NEW: Skip row if column 3 AND column 5 are both blank ***
+
+                        # Skip row if column 3 AND column 5 are both blank
                         if col3_text == "" and col5_text == "":
                              continue # Skip this row
 
-                        data.append([col3_text, col4_text, col5_text])
+                        # If not skipped, extract only column 4 (index 3)
+                        col4_text = row_cells[3].get_text().strip() if len(row_cells) > 3 and row_cells[3] else ""
+                        data.append([col4_text]) # Append a list with only column 4 data
 
 
                 if data: # Check if data was extracted
@@ -218,7 +221,7 @@ def scrape_play_by_play(original_url):
                     st.success("PBP data processing complete.")
                     return df
                 else:
-                    st.warning(f"No data extracted from columns 3, 4, and 5 starting from the 3rd row of the PBP table (after skipping rows where columns 3 and 5 were both blank).")
+                    st.warning(f"No data extracted from column 4 starting from the 3rd row of the PBP table (after skipping rows where columns 3 and 5 were both blank).")
                     return None
             else:
                 st.warning(f"PBP table has fewer than 3 'tr' rows ({len(all_trs)}). Cannot start extraction from the 3rd row.")
