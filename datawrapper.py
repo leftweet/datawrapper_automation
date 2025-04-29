@@ -161,7 +161,7 @@ def scrape_team_basic_stats(soup, team_abbr):
 def scrape_play_by_play(original_url):
     """
     Scrapes columns 3, 4, and 5 from the Play-by-Play table starting from the 3rd row,
-    handling tables without a tbody and removing debugging output.
+    skipping rows where columns 3 and 5 are blank.
 
     Args:
         original_url (str): The original box score URL.
@@ -174,8 +174,7 @@ def scrape_play_by_play(original_url):
     pbp_url = original_url.replace("/boxscores/", "/boxscores/pbp/")
     table_id = 'pbp' # ID of the Play-by-Play table
 
-    st.subheader("Play-by-Play") # Add subheader for the PBP table
-    # Removed all debug st.text messages
+    st.subheader("Play-by-Play")
 
     try:
         # Fetch the PBP page content
@@ -183,12 +182,10 @@ def scrape_play_by_play(original_url):
         response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
         soup = BeautifulSoup(response.content, 'html.parser')
 
-
         # Find the PBP table by its ID, handling comments
         pbp_table = find_element_in_soup(soup, 'table', table_id)
 
         if pbp_table:
-
             # Find all rows directly within the table, as tbody might not be present
             all_trs = pbp_table.find_all('tr')
 
@@ -208,6 +205,10 @@ def scrape_play_by_play(original_url):
                         col4_text = row_cells[3].get_text().strip() if len(row_cells) > 3 and row_cells[3] else ""
                         col5_text = row_cells[4].get_text().strip() if len(row_cells) > 4 and row_cells[4] else ""
 
+                        # *** NEW: Skip row if column 3 AND column 5 are both blank ***
+                        if col3_text == "" and col5_text == "":
+                             continue # Skip this row
+
                         data.append([col3_text, col4_text, col5_text])
 
 
@@ -217,7 +218,7 @@ def scrape_play_by_play(original_url):
                     st.success("PBP data processing complete.")
                     return df
                 else:
-                    st.warning(f"No data extracted from columns 3, 4, and 5 starting from the 3rd row of the PBP table that had at least 5 cells.")
+                    st.warning(f"No data extracted from columns 3, 4, and 5 starting from the 3rd row of the PBP table (after skipping rows where columns 3 and 5 were both blank).")
                     return None
             else:
                 st.warning(f"PBP table has fewer than 3 'tr' rows ({len(all_trs)}). Cannot start extraction from the 3rd row.")
