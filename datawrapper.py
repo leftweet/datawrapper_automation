@@ -208,6 +208,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
     Creates a Datawrapper chart from a pandas DataFrame and publishes it.
     Fetches and embeds the responsive iframe in the Streamlit app using a GET request.
+    Includes printing the full chart properties JSON for debugging.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
@@ -376,6 +377,12 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         st.success("Chart properties fetched successfully.")
 
         chart_data = get_chart_response.json()
+
+        # --- Print the full chart properties JSON for debugging ---
+        st.subheader("Full Chart Properties JSON (for debugging)")
+        st.json(chart_data) # Use st.json for formatted output
+        # --- End of debugging print ---
+
         embed_codes = chart_data.get("embed-codes")
 
         if embed_codes and "embed-method-responsive" in embed_codes:
