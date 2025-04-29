@@ -385,23 +385,39 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
 
         embed_codes = chart_data.get("embed-codes")
 
-        if embed_codes and "embed-method-responsive" in embed_codes:
-            responsive_iframe_code = embed_codes["embed-method-responsive"]
-            st.subheader("Datawrapper Game Flow Chart")
-            # Use st.components.v1.html to embed the iframe
-            # Increased height slightly
-            components.html(responsive_iframe_code, height=450)
+        # --- Additional checks and prints for debugging embedding ---
+        st.subheader("Debugging Embed Code Extraction")
+        if isinstance(embed_codes, dict):
+            st.info("`embed-codes` is a dictionary.")
+            if "embed-method-responsive" in embed_codes:
+                st.info("`'embed-method-responsive'` key found in `embed-codes`.")
+                responsive_iframe_code = embed_codes["embed-method-responsive"]
+                st.info("Extracted responsive iframe code.")
+                st.text("Extracted Code (first 500 chars):")
+                st.code(responsive_iframe_code[:500] + "...", language='html')
 
-            # Optionally, keep the chart URL available as text
-            chart_url = f"https://www.datawrapper.de/_/{chart_id}"
-            st.write(f"Direct Chart Link (for reference): {chart_url}")
+                st.subheader("Datawrapper Game Flow Chart")
+                # Use st.components.v1.html to embed the iframe
+                # Increased height slightly
+                components.html(responsive_iframe_code, height=450)
 
+                # Optionally, keep the chart URL available as text
+                chart_url = f"https://www.datawrapper.de/_/{chart_id}"
+                st.write(f"Direct Chart Link (for reference): {chart_url}")
+
+            else:
+                st.warning("`'embed-method-responsive'` key not found in `embed-codes`.")
+                # Fallback to showing the link if embedding fails
+                chart_url = f"https://www.datawrapper.de/_/{chart_id}"
+                st.subheader("Datawrapper Chart Link")
+                st.write(f"View and embed the chart here: {chart_url}")
         else:
-            st.warning("Could not retrieve responsive iframe embed code from Datawrapper API.")
+            st.warning("`embed-codes` is not a dictionary or is None.")
             # Fallback to showing the link if embedding fails
             chart_url = f"https://www.datawrapper.de/_/{chart_id}"
             st.subheader("Datawrapper Chart Link")
             st.write(f"View and embed the chart here: {chart_url}")
+        # --- End of additional debugging checks ---
 
 
     except requests.exceptions.RequestException as e:
