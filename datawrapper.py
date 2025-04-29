@@ -162,7 +162,7 @@ def scrape_team_basic_stats(soup, team_abbr):
 def scrape_play_by_play(original_url):
     """
     Scrapes the score margin from column 4 of the Play-by-Play table starting from the 3rd row,
-    skipping rows where columns 3 and 5 are blank.
+    skipping rows where columns 3 and 5 are blank, and removes success message.
 
     Args:
         original_url (str): The original box score URL.
@@ -230,7 +230,7 @@ def scrape_play_by_play(original_url):
                 if data: # Check if data was extracted
                     # No headers needed, pandas will assign default columns (0)
                     df = pd.DataFrame(data)
-                    st.success("PBP data processing complete.")
+                    # Removed: st.success("PBP data processing complete.")
                     return df
                 else:
                     st.warning(f"No score margin data extracted from the PBP table starting from the 3rd row (after skipping rows where columns 3 and 5 were both blank or score format was invalid).")
@@ -367,7 +367,7 @@ def main():
                         team2_players_top_scorers['Team'] = team2_abbr
                         all_player_stats.append(team2_players_top_scorers)
                     else:
-                         st.warning(f"Missing required columns for Top Scorers in {team2_abbr} stats.")
+                         st.warning(f"Missing required columns for Player of the Game in {team2_abbr} stats.")
 
                 # Combine and sort stats for Top Scorers if data was collected
                 if all_player_stats:
