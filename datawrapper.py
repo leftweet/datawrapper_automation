@@ -45,7 +45,8 @@ def find_element_in_soup(soup, element_type, element_id):
          comments = soup.find_all(string=lambda text: isinstance(text, Comment))
          for comment in comments:
              comment_soup = BeautifulSoup(comment, 'html.parser')
-             element = comment_soup.find(element_type, id=element_soup)
+             # CORRECTED: Use element_id instead of element_soup
+             element = comment_soup.find(element_type, id=element_id)
              if element:
                  break
     return element
