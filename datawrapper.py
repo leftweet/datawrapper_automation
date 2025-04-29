@@ -412,7 +412,8 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                 st.subheader("Datawrapper Chart Link")
                 st.write(f"View and embed the chart here: {chart_url}")
         else:
-            st.warning("`embed-codes` is not a dictionary or is None.")
+            # Print the type and value of embed_codes when it's not a dictionary
+            st.warning(f"`embed-codes` is not a dictionary or is None. Type: {type(embed_codes)}, Value: {embed_codes}")
             # Fallback to showing the link if embedding fails
             chart_url = f"https://www.datawrapper.de/_/{chart_id}"
             st.subheader("Datawrapper Chart Link")
