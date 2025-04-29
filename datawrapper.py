@@ -213,7 +213,7 @@ def scrape_play_by_play(original_url):
                         col4_text = row_cells[4].get_text().strip() if len(row_cells) > 5 and row_cells[5] else ""
                         col5_text = row_cells[5].get_text().strip() if len(row_cells) > 6 and row_cells[6] else ""
 
-                        data.append([col5_text, col6_text, col7_text])
+                        data.append([col3_text, col4_text, col5_text])
                         st.text(f"  - Extracted columns 3, 4, 5: [{col5_text}, {col6_text}, {col7_text}]") # Debug extracted data
 
                     else:
