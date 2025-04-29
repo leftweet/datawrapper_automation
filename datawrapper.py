@@ -1,19 +1,95 @@
 import streamlit as st
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+
+def scrape_line_score(url):
+    """
+    Scrapes the line score table from a basketball-reference.com URL.
+
+    Args:
+        url (str): The URL of the box score page.
+
+    Returns:
+        pandas.DataFrame or None: A DataFrame containing the line score data,
+                                  or None if scraping fails or the table is not found.
+    """
+    try:
+        # Send a GET request to the URL
+        response = requests.get(url)
+        response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
+
+        # Parse the HTML content
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Find the table with the ID 'line_score'
+        # basketball-reference often comments out tables, need to find the comment first
+        # Check if the table is directly available or commented out
+        line_score_table = soup.find('table', id='line_score')
+
+        if not line_score_table:
+             # If not found directly, search for commented out tables
+             comments = soup.find_all(string=lambda text: isinstance(text, type(BeautifulSoup.Comment)))
+             for comment in comments:
+                 soup_comment = BeautifulSoup(comment, 'html.parser')
+                 line_score_table = soup_comment.find('table', id='line_score')
+                 if line_score_table:
+                     break # Found the table in a comment
+
+
+        if line_score_table:
+            # Extract table headers
+            headers = []
+            # Look for the second tr in the thead, which contains the actual column headers
+            header_row = line_score_table.select_one('thead tr:nth-of-type(2)')
+            if header_row:
+                 headers = [th.get_text().strip() for th in header_row.find_all(['th', 'td'])]
+                 # Clean up headers - '&nbsp;' might appear for the first column
+                 headers = [h if h != '\xa0' else 'Team' for h in headers]
+
+
+            # Extract table rows
+            data = []
+            for row in line_score_table.select('tbody tr'):
+                row_data = [cell.get_text().strip() for cell in row.find_all(['th', 'td'])]
+                data.append(row_data)
+
+            # Create a pandas DataFrame
+            if headers and data:
+                 # Ensure headers and data rows have the same number of columns
+                 # This can be tricky if rows have inconsistent numbers of cells,
+                 # but for well-formed tables like this, it should be consistent.
+                 # If not, padding or error handling might be needed.
+                 # For now, assume consistency based on the provided HTML structure.
+                df = pd.DataFrame(data, columns=headers)
+                return df
+            else:
+                st.error("Could not extract headers or data from the line score table.")
+                return None
+
+        else:
+            st.error("Could not find the line score table on the page.")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error fetching the URL: {e}")
+        return None
+    except Exception as e:
+        st.error(f"An error occurred during scraping: {e}")
+        return None
 
 def main():
     """
-    Basic Streamlit app skeleton for processing a box score URL.
-    Includes input for URL, a process button, and placeholders for chart sections.
+    Streamlit app for analyzing box scores.
     """
     st.title("Box Score Analyzer")
 
-    st.write("Enter the URL of a box score to analyze:")
+    st.write("Enter the URL of a basketball-reference.com box score to analyze:")
 
     # Input field for the box score URL
     box_score_url = st.text_input("Box Score URL", "")
 
     # Button to trigger processing
-    # We only need this button definition once
     process_button_pressed = st.button("Process Box Score")
 
     # Optional: Add some explanatory text initially
@@ -23,24 +99,32 @@ def main():
     # This block executes only when the button is pressed
     if process_button_pressed:
         if box_score_url:
-            # In a real app, data fetching and processing would happen here
             st.success(f"Processing URL: {box_score_url}")
-            st.warning("Data processing and chart rendering are not yet implemented.")
 
-            # --- Placeholder Sections for Charts ---
-
+            # --- Team Trends Section ---
             st.header("Team Trends")
-            st.write("Chart area for team trends will appear here.")
-            # Add a placeholder for a chart, e.g.,
-            # st.empty() or st.pyplot(), st.line_chart(), etc. depending on the chart type
+            # Call the scraping function
+            line_score_df = scrape_line_score(box_score_url)
 
+            # Display the line score table if successfully scraped
+            if line_score_df is not None:
+                st.subheader("Line Score")
+                st.dataframe(line_score_df) # Use st.dataframe for interactive table
+
+            else:
+                st.warning("Could not display line score. Please check the URL and try again.")
+
+
+            # --- Placeholder Sections for other charts ---
             st.header("Top 5 Scorers")
             st.write("Chart/Table area for top 5 scorers will appear here.")
-            # Add a placeholder for a chart/table
+            st.warning("Scraping for player stats is not yet implemented.")
+
 
             st.header("Player of the Game")
             st.write("Section to highlight the Player of the Game.")
-            # Add a placeholder for player details or a summary
+            st.warning("Logic for determining Player of the Game is not yet implemented.")
+
 
         else:
             st.error("Please enter a valid Box Score URL.")
