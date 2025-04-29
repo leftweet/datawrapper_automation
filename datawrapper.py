@@ -9,6 +9,7 @@ import pandas as pd
 import json
 import os
 import csv
+import streamlit.components.v1 as components # Import components for embedding HTML
 
 # --- Datawrapper API Configuration ---
 # Use Streamlit secrets for the API token
@@ -205,6 +206,7 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
 def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
     Creates a Datawrapper chart from a pandas DataFrame and publishes it.
+    Embeds the responsive iframe in the Streamlit app.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
@@ -214,6 +216,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
 
     # Define temporary CSV filename
     csv_filename = f"pbp_data_{team1_abbr}_{team2_abbr}.csv"
+    chart_url = None # Initialize chart_url
 
     try:
         # Save DataFrame to temporary CSV
@@ -363,10 +366,27 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         publish_response.raise_for_status()
         st.success("Chart published!")
 
-        # Step 6: Output chart URL
-        chart_url = f"https://www.datawrapper.de/_/{chart_id}"
-        st.subheader("Datawrapper Chart Link")
-        st.write(f"View and embed the chart here: {chart_url}")
+        # Extract embed codes from the publish response
+        publish_data = publish_response.json()
+        embed_codes = publish_data.get("embed-codes")
+
+        if embed_codes and "embed-method-responsive" in embed_codes:
+            responsive_iframe_code = embed_codes["embed-method-responsive"]
+            st.subheader("Datawrapper Game Flow Chart")
+            # Use st.components.v1.html to embed the iframe
+            components.html(responsive_iframe_code, height=450) # Adjust height as needed
+
+            # Optionally, keep the chart URL available as text
+            chart_url = f"https://www.datawrapper.de/_/{chart_id}"
+            st.write(f"Direct Chart Link (for reference): {chart_url}")
+
+        else:
+            st.warning("Could not retrieve responsive iframe embed code from Datawrapper API.")
+            # Fallback to showing the link if embedding fails
+            chart_url = f"https://www.datawrapper.de/_/{chart_id}"
+            st.subheader("Datawrapper Chart Link")
+            st.write(f"View and embed the chart here: {chart_url}")
+
 
     except requests.exceptions.RequestException as e:
         st.error(f"Datawrapper API Error: {e}")
