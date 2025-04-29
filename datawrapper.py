@@ -141,8 +141,7 @@ def scrape_team_basic_stats(soup, team_abbr):
              max_cols = len(headers)
              # Check consistency of row lengths before padding
              inconsistent_rows = [i for i, row in enumerate(data) if len(row) != max_cols]
-             if inconsistent_rows:
-                 st.warning(f"Found {len(inconsistent_rows)} rows with inconsistent column counts for {team_abbr} before padding.")
+             # Removed the warning about inconsistent rows before padding
 
              padded_data = [row + [None] * (max_cols - len(row)) for row in data]
              st.success(f"Headers and data extracted successfully for {team_abbr}.")
@@ -157,6 +156,7 @@ def scrape_team_basic_stats(soup, team_abbr):
         return None
 
 
+# The main function remains the same as the previous correct version
 def main():
     """
     Streamlit app for analyzing box scores.
