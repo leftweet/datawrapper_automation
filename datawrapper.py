@@ -160,7 +160,7 @@ def scrape_team_basic_stats(soup, team_abbr):
 @st.cache_data(ttl=600) # Add caching decorator (cache for 10 minutes)
 def scrape_play_by_play(original_url):
     """
-    Scrapes columns 5, 6, and 7 from the Play-by-Play table starting from the 3rd row,
+    Scrapes columns 2, 3, and 4 from the Play-by-Play table starting from the 3rd row,
     handling tables without a tbody.
 
     Args:
@@ -206,18 +206,18 @@ def scrape_play_by_play(original_url):
                     row_cells = row.find_all(['th', 'td'])
                     st.text(f"Processing table row index {i+2} (actual index {i+2}): Found {len(row_cells)} cells.") # Debug current row and cell count
 
-                    # Check if the row has at least 7 cells to extract columns 5, 6, and 7 (indices 4, 5, 6)
-                    if len(row_cells) >= 5:
+                    # Check if the row has at least 4 cells to extract columns 3, 4, and 5 (indices 2, 3, 4)
+                    if len(row_cells) >= 4:
                         # Safely get cell text, handle cases where cells might be None if structure is inconsistent
+                        col2_text = row_cells[2].get_text().strip() if len(row_cells) > 1 and row_cells[2] else ""
                         col3_text = row_cells[3].get_text().strip() if len(row_cells) > 2 and row_cells[3] else ""
                         col4_text = row_cells[4].get_text().strip() if len(row_cells) > 3 and row_cells[4] else ""
-                        col5_text = row_cells[5].get_text().strip() if len(row_cells) > 4 and row_cells[5] else ""
 
-                        data.append([col3_text, col4_text, col5_text])
-                        st.text(f"  - Extracted columns 3, 4, 5: [{col3_text}, {col4_text}, {col5_text}]") # Debug extracted data
+                        data.append([col2_text, col3_text, col4_text])
+                        st.text(f"  - Extracted columns 2, 3, 4: [{col2_text}, {col3_text}, {col4_text}]") # Debug extracted data
 
                     else:
-                        st.text(f"  - Skipping row {i+2} (actual index {i+2}): Insufficient cells ({len(row_cells)} < 6) for desired columns.") # Debug skipping reason
+                        st.text(f"  - Skipping row {i+2} (actual index {i+2}): Insufficient cells ({len(row_cells)} < 5) for desired columns.") # Debug skipping reason
 
 
                 st.text(f"Total PBP data rows extracted: {len(data)}")
@@ -230,7 +230,7 @@ def scrape_play_by_play(original_url):
                     # Removed debug: st.text("Returning PBP DataFrame.")
                     return df
                 else:
-                    st.warning(f"No data extracted from columns 3, 4, and 5 starting from the 3rd row of the PBP table that had at least 7 cells.")
+                    st.warning(f"No data extracted from columns 2, 3, and 4 starting from the 3rd row of the PBP table that had at least 7 cells.")
                     return None
             else:
                 st.warning(f"PBP table has fewer than 3 'tr' rows ({len(all_trs)}). Cannot start extraction from the 3rd row.")
