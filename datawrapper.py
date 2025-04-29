@@ -13,7 +13,15 @@ def main():
     box_score_url = st.text_input("Box Score URL", "")
 
     # Button to trigger processing
-    if st.button("Process Box Score"):
+    # We only need this button definition once
+    process_button_pressed = st.button("Process Box Score")
+
+    # Optional: Add some explanatory text initially
+    if not process_button_pressed:
+         st.info("Enter a URL and click 'Process Box Score' to see the analysis sections.")
+
+    # This block executes only when the button is pressed
+    if process_button_pressed:
         if box_score_url:
             # In a real app, data fetching and processing would happen here
             st.success(f"Processing URL: {box_score_url}")
@@ -36,17 +44,6 @@ def main():
 
         else:
             st.error("Please enter a valid Box Score URL.")
-
-    # Optional: Add some explanatory text when the button hasn't been pressed yet
-    if not st.session_state.get('button_pressed', False):
-         st.info("Enter a URL and click 'Process Box Score' to see the analysis sections.")
-         # Use session state to track if the button was pressed, preventing immediate display
-         if 'button_pressed' not in st.session_state:
-             st.session_state['button_pressed'] = False
-
-    # Update session state when button is pressed
-    if st.button("Process Box Score"):
-        st.session_state['button_pressed'] = True
 
 
 if __name__ == "__main__":
