@@ -372,7 +372,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
 
         # --- Add a small delay before fetching properties ---
         st.info("Adding a small delay to allow Datawrapper to process...")
-        time.sleep(5) # Wait for 5 seconds
+        time.sleep(10) # Increased wait to 10 seconds
         # --- End of delay ---
 
         # Step 6: Get chart properties (including embed codes) using GET request
