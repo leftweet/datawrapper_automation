@@ -156,10 +156,11 @@ def scrape_team_basic_stats(soup, team_abbr):
         st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
         return None
 
-# New function to scrape Play-by-Play table
+# Updated function to scrape Play-by-Play table with debug output and robust header finding
 def scrape_play_by_play(original_url):
     """
     Scrapes the Play-by-Play table from a basketball-reference.com PBP URL.
+    Includes debug output and robust header finding.
 
     Args:
         original_url (str): The original box score URL.
@@ -173,6 +174,7 @@ def scrape_play_by_play(original_url):
     table_id = 'pbp' # ID of the Play-by-Play table
 
     st.subheader("Play-by-Play") # Add subheader for the PBP table
+    st.text(f"Attempting to fetch PBP URL: {pbp_url}")
 
     try:
         # Fetch the PBP page content
@@ -180,51 +182,100 @@ def scrape_play_by_play(original_url):
         response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
         soup = BeautifulSoup(response.content, 'html.parser')
 
+        st.text(f"Successfully fetched PBP page.")
+
         # Find the PBP table by its ID, handling comments
         pbp_table = find_element_in_soup(soup, 'table', table_id)
 
         if pbp_table:
+            st.text(f"Found PBP table with ID '{table_id}'. Attempting to extract data...")
             try:
                 # Extract table headers
                 headers = []
-                # The main headers for the PBP table are usually in the second tr of the thead
-                # Based on the screenshot, the first tr is a multi-quarter header.
-                header_row = pbp_table.select_one('thead tr:nth-of-type(2)')
-                if header_row:
-                     headers = [th.get_text().strip() for th in header_row.find_all(['th', 'td'])]
-                     # Clean up headers - remove empty ones or specific unwanted text if any
-                     headers = [h for h in headers if h] # Keep only non-empty headers
+                header_row_element = None
+
+                thead = pbp_table.find('thead')
+                if thead:
+                     header_rows = thead.find_all('tr')
+                     st.text(f"Found {len(header_rows)} rows in the PBP thead.")
+                     for i, row in enumerate(header_rows):
+                         row_cells = row.find_all(['th', 'td'])
+                         cell_texts = [cell.get_text().strip() for cell in row_cells]
+                         st.text(f"Checking PBP thead row {i+1}: {cell_texts}")
+                         # Look for characteristic headers like 'Time' and 'Score'
+                         if 'Time' in cell_texts and 'Score' in cell_texts:
+                             headers = cell_texts
+                             header_row_element = row
+                             st.text(f"Identified PBP header row {i+1} containing 'Time' and 'Score'.")
+                             break # Found the header row
+
+
+                st.text(f"PBP Header row identified: {header_row_element is not None}")
+                if not header_row_element:
+                     st.warning(f"Could not identify a suitable header row in the PBP thead.")
+                     # Continue to extract data even if headers are missing, but warn.
+                     # The DataFrame will not have column names in this case.
 
 
                 # Extract table rows (play-by-play events)
                 data = []
                 if pbp_table.find('tbody'): # Ensure tbody exists
-                    for row in pbp_table.select('tbody tr'):
-                        row_cells = row.find_all(['th', 'td'])
-                        # Skip empty rows or rows that don't represent a play
-                        if not row_cells or row_cells[0].get_text().strip() == '':
+                    tbody_rows = pbp_table.select('tbody tr')
+                    st.text(f"Found {len(tbody_rows)} rows in the PBP tbody.")
+                    for i, row in enumerate(tbody_rows):
+                        # Skip quarter break rows if they have an id like 'q1', 'q2', etc.
+                        if 'q' in row.get('id', ''):
+                            st.text(f"Skipping PBP tbody row {i+1} with ID like 'q'.")
                             continue
-                        # Also skip quarter break rows if they exist and are structured differently
-                        if 'q' in row.get('id', ''): # Rows with id like 'q1', 'q2', etc. are usually quarter headers
-                             continue
+
+                        row_cells = row.find_all(['th', 'td'])
+                        # Skip empty rows or rows that don't look like a play (e.g., few cells)
+                        # A typical play row should have at least 3 cells (Time, Event/Team, Score/Description)
+                        if not row_cells or len(row_cells) < 3:
+                            st.text(f"Skipping PBP tbody row {i+1} with insufficient cells ({len(row_cells)}).")
+                            continue
 
                         row_data = [cell.get_text().strip() for cell in row_cells]
                         data.append(row_data)
+                        # Optional: print first few data rows
+                        # if len(data) <= 5:
+                        #     st.text(f"PBP data row {len(data)}: {row_data}")
 
-                if headers and data:
-                    # Ensure data rows have the same number of columns as headers
-                    # PBP tables can be complex; simple padding might not always work perfectly.
-                    # We'll pad for now, but might need more specific logic if issues arise.
-                    max_cols = len(headers)
-                    padded_data = [row + [None] * (max_cols - len(row)) for row in data]
 
-                    df = pd.DataFrame(padded_data, columns=headers)
+                st.text(f"Total PBP data rows extracted: {len(data)}")
+
+                if data: # Check if data was extracted (headers might be missing)
+                    # Determine max columns based on headers if available, otherwise find max row length
+                    max_cols = len(headers) if headers else (max(len(row) for row in data) if data else 0)
+                    st.text(f"Expected number of PBP columns: {max_cols}")
+
+
+                    # Ensure data rows have the same number of columns (pad if necessary)
+                    # This padding is crucial if headers were found to match data row length
+                    # If headers were not found, we pad based on the max row length found in data.
+                    padded_data = []
+                    for row in data:
+                         padded_row = row + [None] * (max_cols - len(row))
+                         # If headers were found, truncate rows that are unexpectedly longer
+                         if headers and len(padded_row) > max_cols:
+                              padded_row = padded_row[:max_cols]
+                         padded_data.append(padded_row)
+
+
+                    # If headers were not found, create generic column names
+                    column_names = headers if headers else [f'Col{i+1}' for i in range(max_cols)]
+
+
+                    st.success("PBP Headers and data processing complete.")
+                    df = pd.DataFrame(padded_data, columns=column_names)
+                    st.text("PBP DataFrame created.")
                     return df
                 else:
-                    st.warning(f"Could not extract headers or data from the '{table_id}' table on the PBP page.")
+                    st.warning(f"No valid data rows extracted from the '{table_id}' table on the PBP page.")
                     return None
+
             except Exception as e:
-                st.error(f"Error parsing '{table_id}' table on PBP page: {e}")
+                st.error(f"An error occurred while parsing the PBP table content for '{table_id}': {e}")
                 return None
 
         else:
@@ -273,16 +324,18 @@ def main():
                 st.header("Team Trends")
 
                 # Scrape and display the Play-by-Play table FIRST
+                # PBP scraping fetches its own URL, so it doesn't need the initial soup
                 pbp_df = scrape_play_by_play(box_score_url)
                 if pbp_df is not None:
                     st.dataframe(pbp_df)
                 else:
                     # Warning is displayed inside scrape_play_by_play
-                    pass # Do nothing here if PBP failed
+                    pass
 
 
-                # Scrape and display the line score table (already has subheader inside function)
-                line_score_df = scrape_line_score(soup)
+                # Scrape and display the line score table (using the initially fetched soup)
+                st.subheader("Line Score")
+                line_score_df = scrape_line_score(soup) # Pass the initial soup
 
                 # Variables to hold team stats dataframes and abbreviations
                 team1_stats_df = None
@@ -300,16 +353,16 @@ def main():
                             team1_abbr = line_score_df.iloc[0, 0]
                             team2_abbr = line_score_df.iloc[1, 0]
 
-                            # Scrape and display stats for Team 1
+                            # Scrape and display stats for Team 1 (using the initial soup)
                             st.subheader(f"{team1_abbr} Basic Stats")
-                            team1_stats_df = scrape_team_basic_stats(soup, team1_abbr)
+                            team1_stats_df = scrape_team_basic_stats(soup, team1_abbr) # Pass the initial soup
                             if team1_stats_df is not None:
                                 st.dataframe(team1_stats_df)
 
 
-                            # Scrape and display stats for Team 2
+                            # Scrape and display stats for Team 2 (using the initial soup)
                             st.subheader(f"{team2_abbr} Basic Stats")
-                            team2_stats_df = scrape_team_basic_stats(soup, team2_abbr)
+                            team2_stats_df = scrape_team_basic_stats(soup, team2_abbr) # Pass the initial soup
                             if team2_stats_df is not None:
                                 st.dataframe(team2_stats_df)
 
@@ -327,15 +380,16 @@ def main():
 
 
                 # --- Top Scorers Section ---
-                st.header("Top Scorers")
+                st.header("Top Scorers") # Changed header text
 
                 all_player_stats = []
 
                 # Process Team 1 stats for Top Scorers and Player of the Game
-                if team1_stats_df is not None and team1_abbr:
-                    required_cols_top_scorers = ['Starters', 'PTS']
-                    # required_cols_pog defined later in POG section
+                # Ensure necessary columns exist for both sections
+                required_cols_top_scorers = ['Starters', 'PTS']
+                required_cols_pog = ['Starters', 'GmSc', 'TRB', 'AST', 'STL', 'BLK', 'PTS'] # Defined here for clarity
 
+                if team1_stats_df is not None and team1_abbr:
                     if all(col in team1_stats_df.columns for col in required_cols_top_scorers):
                         team1_players_top_scorers = team1_stats_df[required_cols_top_scorers].copy()
                         team1_players_top_scorers = team1_players_top_scorers.rename(columns={'Starters': 'Player'})
@@ -345,11 +399,8 @@ def main():
                         st.warning(f"Missing required columns for Top Scorers in {team1_abbr} stats.")
 
 
-                # Process Team 2 stats for Top Scorers and Player of the Game
+                # Process Team 2 stats for Top Scorers
                 if team2_stats_df is not None and team2_abbr:
-                    required_cols_top_scorers = ['Starters', 'PTS']
-                    # required_cols_pog defined later in POG section
-
                     if all(col in team2_stats_df.columns for col in required_cols_top_scorers):
                         team2_players_top_scorers = team2_stats_df[required_cols_top_scorers].copy()
                         team2_players_top_scorers = team2_players_top_scorers.rename(columns={'Starters': 'Player'})
