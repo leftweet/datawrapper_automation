@@ -92,14 +92,12 @@ def scrape_team_basic_stats(soup, team_abbr):
         st.warning(f"Could not find the '{div_id}' container div on the page for {team_abbr}.")
         return None
 
-    # Removed: st.success(f"Found div '{div_id}' for {team_abbr}. Attempting to find table '{table_id}' inside...")
     team_stats_table = container_div.find('table', id=table_id)
 
     if not team_stats_table:
         st.warning(f"Could not find the '{table_id}' table inside the '{div_id}' div for {team_abbr}.")
         return None
 
-    # Removed: st.success(f"Found table '{table_id}' for {team_abbr}. Attempting to extract data...")
 
     try:
         # Extract table headers
@@ -122,6 +120,7 @@ def scrape_team_basic_stats(soup, team_abbr):
              st.warning(f"Could not identify a suitable header row in the thead for {team_abbr}.")
              return None
 
+
         # Extract table rows (player stats)
         data = []
         if team_stats_table.find('tbody'): # Ensure tbody exists
@@ -130,8 +129,11 @@ def scrape_team_basic_stats(soup, team_abbr):
 
              for row in player_rows:
                 row_cells = row.find_all(['th', 'td'])
-                if not row_cells or row_cells[0].get_text().strip() == '':
-                     continue
+                # Skip empty rows or rows that don't look like player data (e.g., subheaders like 'Starters')
+                # Check if the first cell contains player name-like content
+                if not row_cells or row_cells[0].get_text().strip() == '' or row_cells[0].name != 'th':
+                     continue # Skip if empty or not a player header cell (usually 'th' for name)
+
 
                 row_data = [cell.get_text().strip() for cell in row_cells]
                 data.append(row_data)
@@ -143,7 +145,6 @@ def scrape_team_basic_stats(soup, team_abbr):
              # Removed the warning about inconsistent rows before padding
 
              padded_data = [row + [None] * (max_cols - len(row)) for row in data]
-             # Removed: st.success(f"Headers and data extracted successfully for {team_abbr}.")
              df = pd.DataFrame(padded_data, columns=headers)
              return df
         else:
@@ -155,7 +156,7 @@ def scrape_team_basic_stats(soup, team_abbr):
         return None
 
 
-# The main function remains the same as the previous correct version
+# The main function is updated to include the player stats processing
 def main():
     """
     Streamlit app for analyzing box scores.
@@ -175,7 +176,7 @@ def main():
          st.info("Enter a URL and click 'Process Box Score' to see the analysis sections.")
 
     # This block executes only when the button is pressed
-    if process_button_pressed:
+    if process_score_pressed := process_button_pressed: # Assign value and check in one step
         if box_score_url:
             st.success(f"Processing URL: {box_score_url}")
 
@@ -192,6 +193,13 @@ def main():
                 st.subheader("Line Score")
                 line_score_df = scrape_line_score(soup)
 
+                # Variables to hold team stats dataframes
+                team1_stats_df = None
+                team2_stats_df = None
+                team1_abbr = None
+                team2_abbr = None
+
+
                 if line_score_df is not None:
                     st.dataframe(line_score_df)
 
@@ -200,8 +208,6 @@ def main():
                             # Team abbr is in the first column (index 0)
                             team1_abbr = line_score_df.iloc[0, 0]
                             team2_abbr = line_score_df.iloc[1, 0]
-
-                            # Removed: st.text(f"Attempting to scrape stats for teams: {team1_abbr}, {team2_abbr}")
 
                             # Scrape and display stats for Team 1
                             st.subheader(f"{team1_abbr} Basic Stats")
@@ -229,12 +235,50 @@ def main():
                     st.warning("Could not display line score. Cannot proceed to scrape team stats.")
 
 
-                # --- Placeholder Sections for other charts ---
+                # --- Top 5 Scorers Section ---
                 st.header("Top 5 Scorers")
-                st.write("Chart/Table area for top 5 scorers will appear here.")
-                st.warning("Scraping for advanced player stats or calculating top scorers is not yet implemented.")
+                # Process and display combined player stats here
+
+                all_player_stats = []
+
+                # Process Team 1 stats
+                if team1_stats_df is not None and team1_abbr:
+                    # Ensure 'Starters' and 'PTS' columns exist
+                    if 'Starters' in team1_stats_df.columns and 'PTS' in team1_stats_df.columns:
+                        team1_players = team1_stats_df[['Starters', 'PTS']].copy() # Use .copy() to avoid SettingWithCopyWarning
+                        team1_players['Team'] = team1_abbr
+                        all_player_stats.append(team1_players)
+                    else:
+                        st.warning(f"Could not find 'Starters' or 'PTS' columns in {team1_abbr} stats.")
 
 
+                # Process Team 2 stats
+                if team2_stats_df is not None and team2_abbr:
+                    # Ensure 'Starters' and 'PTS' columns exist
+                    if 'Starters' in team2_stats_df.columns and 'PTS' in team2_stats_df.columns:
+                        team2_players = team2_stats_df[['Starters', 'PTS']].copy() # Use .copy() to avoid SettingWithCopyWarning
+                        team2_players['Team'] = team2_abbr
+                        all_player_stats.append(team2_players)
+                    else:
+                         st.warning(f"Could not find 'Starters' or 'PTS' columns in {team2_abbr} stats.")
+
+                # Combine and sort stats if data was collected
+                if all_player_stats:
+                    combined_df = pd.concat(all_player_stats, ignore_index=True)
+
+                    # Convert 'PTS' to numeric, handling errors
+                    combined_df['PTS'] = pd.to_numeric(combined_df['PTS'], errors='coerce').fillna(0)
+
+                    # Sort by PTS descending
+                    sorted_players_df = combined_df.sort_values(by='PTS', ascending=False)
+
+                    st.subheader("Combined Player Scoring")
+                    st.dataframe(sorted_players_df)
+                else:
+                    st.info("Player stats could not be processed for Top Scorers.")
+
+
+                # --- Player of the Game Section ---
                 st.header("Player of the Game")
                 st.write("Section to highlight the Player of the Game.")
                 st.warning("Logic for determining Player of the Game is not yet implemented.")
