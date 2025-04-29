@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from bs4.element import Comment # Import Comment
 import pandas as pd
 
+# (Keep find_element_in_soup, scrape_line_score, and scrape_team_basic_stats functions as they are)
 def find_element_in_soup(soup, element_type, element_id):
     """
     Finds an element by its type and ID within a BeautifulSoup object,
@@ -156,7 +157,7 @@ def scrape_team_basic_stats(soup, team_abbr):
         return None
 
 
-# The main function is updated to include the player stats processing
+# The main function is updated to filter the top 5 players with ties
 def main():
     """
     Streamlit app for analyzing box scores.
@@ -176,7 +177,7 @@ def main():
          st.info("Enter a URL and click 'Process Box Score' to see the analysis sections.")
 
     # This block executes only when the button is pressed
-    if process_score_pressed := process_button_pressed: # Assign value and check in one step
+    if process_score_pressed := process_button_pressed:
         if box_score_url:
             st.success(f"Processing URL: {box_score_url}")
 
@@ -193,7 +194,7 @@ def main():
                 st.subheader("Line Score")
                 line_score_df = scrape_line_score(soup)
 
-                # Variables to hold team stats dataframes
+                # Variables to hold team stats dataframes and abbreviations
                 team1_stats_df = None
                 team2_stats_df = None
                 team1_abbr = None
@@ -243,9 +244,9 @@ def main():
 
                 # Process Team 1 stats
                 if team1_stats_df is not None and team1_abbr:
-                    # Ensure 'Starters' and 'PTS' columns exist
                     if 'Starters' in team1_stats_df.columns and 'PTS' in team1_stats_df.columns:
-                        team1_players = team1_stats_df[['Starters', 'PTS']].copy() # Use .copy() to avoid SettingWithCopyWarning
+                        team1_players = team1_stats_df[['Starters', 'PTS']].copy()
+                        team1_players = team1_players.rename(columns={'Starters': 'Player'}) # Rename column for consistency
                         team1_players['Team'] = team1_abbr
                         all_player_stats.append(team1_players)
                     else:
@@ -254,9 +255,9 @@ def main():
 
                 # Process Team 2 stats
                 if team2_stats_df is not None and team2_abbr:
-                    # Ensure 'Starters' and 'PTS' columns exist
                     if 'Starters' in team2_stats_df.columns and 'PTS' in team2_stats_df.columns:
-                        team2_players = team2_stats_df[['Starters', 'PTS']].copy() # Use .copy() to avoid SettingWithCopyWarning
+                        team2_players = team2_stats_df[['Starters', 'PTS']].copy()
+                        team2_players = team2_players.rename(columns={'Starters': 'Player'}) # Rename column for consistency
                         team2_players['Team'] = team2_abbr
                         all_player_stats.append(team2_players)
                     else:
@@ -272,8 +273,23 @@ def main():
                     # Sort by PTS descending
                     sorted_players_df = combined_df.sort_values(by='PTS', ascending=False)
 
-                    st.subheader("Combined Player Scoring")
-                    st.dataframe(sorted_players_df)
+                    # --- Filter for Top 5 with ties ---
+                    if len(sorted_players_df) > 0:
+                        # Get the points of the 5th player (index 4, if exists)
+                        # Handle case with less than 5 players gracefully
+                        if len(sorted_players_df) >= 5:
+                            fifth_player_pts = sorted_players_df.iloc[4]['PTS']
+                            # Filter players with points >= the 5th player's points
+                            top_scorers_df = sorted_players_df[sorted_players_df['PTS'] >= fifth_player_pts]
+                        else:
+                            # If less than 5 players, just show all of them
+                            top_scorers_df = sorted_players_df
+
+                        st.subheader("Top Scorers (including ties with 5th place)")
+                        st.dataframe(top_scorers_df)
+                    else:
+                        st.info("No player stats available to determine top scorers.")
+
                 else:
                     st.info("Player stats could not be processed for Top Scorers.")
 
