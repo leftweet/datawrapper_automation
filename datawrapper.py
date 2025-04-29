@@ -10,7 +10,7 @@ import json
 import os
 import csv
 import streamlit.components.v1 as components # Import components for embedding HTML
-import time # Import the time module for delays
+# Removed time import as retry logic is removed
 
 # --- Datawrapper API Configuration ---
 # Use Streamlit secrets for the API token
@@ -46,7 +46,6 @@ def find_element_in_soup(soup, element_type, element_id):
          comments = soup.find_all(string=lambda text: isinstance(text, Comment))
          for comment in comments:
              comment_soup = BeautifulSoup(comment, 'html.parser')
-             # CORRECTED: Use element_id instead of element_soup
              element = comment_soup.find(element_type, id=element_id)
              if element:
                  break
@@ -208,8 +207,7 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
 def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
     Creates a Datawrapper chart from a pandas DataFrame and publishes it.
-    Fetches and embeds the responsive iframe in the Streamlit app using a GET request with retries.
-    Includes printing the full chart properties JSON for debugging.
+    Constructs and embeds the responsive iframe in the Streamlit app.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
@@ -240,11 +238,12 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         x_axis_col = headers[0] # Should be 'Time'
         team_a_col = headers[1] # Should be team1_abbr
         team_b_col = headers[2] # Should be team2_abbr
+        chart_title = f"{team_a_col} vs. {team_b_col} Game Flow" # Get chart title from team abbreviations
 
         # Step 2: Create the chart
         st.info("Attempting to create Datawrapper chart...")
         chart_config = {
-            "title": f"{team_a_col} vs. {team_b_col} Game Flow",
+            "title": chart_title, # Use the dynamically created title
             "type": "d3-lines"
         }
         response = requests.post(f"{BASE_URL}/charts", headers=HEADERS_JSON, data=json.dumps(chart_config))
@@ -370,58 +369,20 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         publish_response.raise_for_status()
         st.success("Chart published!")
 
-        # Step 6: Get chart properties (including embed codes) using GET request with retries
-        st.info(f"Attempting to fetch chart properties for ID: {chart_id} with retries...")
-        get_chart_url = f"{BASE_URL}/charts/{chart_id}"
-        chart_data = None
-        embed_codes = None
-        max_retries = 5
-        retry_delay = 5 # seconds
-
-        for attempt in range(max_retries):
-            try:
-                get_chart_response = requests.get(get_chart_url, headers={'Authorization': f'Bearer {API_TOKEN}'})
-                get_chart_response.raise_for_status()
-                chart_data = get_chart_response.json()
-                embed_codes = chart_data.get("embed-codes")
-
-                if isinstance(embed_codes, dict):
-                    st.success(f"Chart properties fetched successfully on attempt {attempt + 1}.")
-                    break # Exit loop if embed_codes is a dictionary
-                else:
-                    st.warning(f"Attempt {attempt + 1}: `embed-codes` is not a dictionary or is None. Retrying in {retry_delay} seconds...")
-                    time.sleep(retry_delay)
-
-            except requests.exceptions.RequestException as e:
-                st.error(f"Attempt {attempt + 1}: Error fetching chart properties: {e}")
-                if e.response is not None:
-                    st.error(f"Error Response Status Code: {e.response.status_code}")
-                    st.error(f"Error Response Body: {e.response.text}")
-                st.warning(f"Retrying in {retry_delay} seconds...")
-                time.sleep(retry_delay)
-            except Exception as e:
-                 st.error(f"Attempt {attempt + 1}: An unexpected error occurred during fetching chart properties: {e}")
-                 st.warning(f"Retrying in {retry_delay} seconds...")
-                 time.sleep(retry_delay)
-
-        # --- Print the full chart properties JSON for debugging (from the last attempt) ---
-        st.subheader("Full Chart Properties JSON (from last attempt for debugging)")
-        if chart_data:
-            st.json(chart_data)
-        else:
-            st.info("Could not fetch chart properties after multiple retries.")
-        # --- End of debugging print ---
-
-        # --- Check embed_codes after retries and embed or fallback ---
-        st.subheader("Embedding Chart")
-        if isinstance(embed_codes, dict) and "embed-method-responsive" in embed_codes:
-            st.info("`'embed-method-responsive'` key found in `embed-codes` after retries.")
-            responsive_iframe_code = embed_codes["embed-method-responsive"]
-            st.info("Extracted responsive iframe code.")
-            st.text("Extracted Code (first 500 chars):")
-            st.code(responsive_iframe_code[:500] + "...", language='html')
-
+        # --- Construct and embed the responsive iframe HTML ---
+        if chart_id:
             st.subheader("Datawrapper Game Flow Chart")
+            # Static responsive iframe template
+            responsive_iframe_template = """
+            <iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="400" data-external="1"></iframe><script type="text/javascript">!function(){"use strict";window.addEventListener("message",(function(a){if(void 0!==a.data["datawrapper-height"]){var e=document.querySelectorAll("iframe");for(var t in a.data["datawrapper-height"])for(var r,i=0;r=e[i];i++)if(r.contentWindow===a.source){var d=a.data["datawrapper-height"][t]+"px";r.style.height=d}}}))}();
+            </script>
+            """
+            # Format the template with dynamic chart_id and chart_title
+            responsive_iframe_code = responsive_iframe_template.format(
+                chart_id=chart_id,
+                chart_title=chart_title # Use the dynamically created title
+            )
+
             # Use st.components.v1.html to embed the iframe
             # Set a reasonable height, adjust as needed
             components.html(responsive_iframe_code, height=450)
@@ -431,15 +392,14 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
             st.write(f"Direct Chart Link (for reference): {chart_url}")
 
         else:
-            st.warning("Could not retrieve responsive iframe embed code from Datawrapper API after multiple retries.")
-            # Fallback to showing the link if embedding fails
-            if chart_id: # Only show link if chart_id was obtained
-                chart_url = f"https://www.datawrapper.de/_/{chart_id}"
-                st.subheader("Datawrapper Chart Link")
-                st.write(f"View and embed the chart here: {chart_url}")
-            else:
-                 st.error("Could not create or publish chart, no link available.")
-        # --- End of embedding or fallback ---
+            st.warning("Could not create or publish chart, no chart ID available to embed.")
+            # Fallback to showing the link if embedding fails (though chart_id should be available here if publish succeeded)
+            # This else block is primarily for safety if chart_id wasn't set for some unexpected reason
+            st.subheader("Datawrapper Chart Link")
+            st.write("Chart ID not available. Could not generate link.")
+
+        # Removed debugging prints for JSON and embed code extraction checks
+        # --- End of embedding ---
 
 
     except requests.exceptions.RequestException as e:
@@ -595,7 +555,7 @@ def main():
                 if team2_stats_df is not None and team2_abbr:
                     if all(col in team2_stats_df.columns for col in required_cols_pog):
                         team2_players_pog = team2_stats_df[required_cols_pog].copy()
-                        team2_players_pog = team2_players_pog.rename(columns={'Starters': 'Player'})
+                        team2_players_pog = team2_players_top_scorers.rename(columns={'Starters': 'Player'})
                         pog_candidates_list.append(team2_players_pog)
                     else:
                          st.warning(f"Missing required columns for Player of the Game in {team2_abbr} stats.")
