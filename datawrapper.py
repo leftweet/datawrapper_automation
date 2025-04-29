@@ -10,6 +10,7 @@ import json
 import os
 import csv
 import streamlit.components.v1 as components # Import components for embedding HTML
+import time # Import the time module for delays
 
 # --- Datawrapper API Configuration ---
 # Use Streamlit secrets for the API token
@@ -369,8 +370,13 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         publish_response.raise_for_status()
         st.success("Chart published!")
 
+        # --- Add a small delay before fetching properties ---
+        st.info("Adding a small delay to allow Datawrapper to process...")
+        time.sleep(5) # Wait for 5 seconds
+        # --- End of delay ---
+
         # Step 6: Get chart properties (including embed codes) using GET request
-        st.info(f"Fetching chart properties for ID: {chart_id}...")
+        st.info(f"Fetching chart properties for ID: {chart_id} after delay...")
         get_chart_url = f"{BASE_URL}/charts/{chart_id}"
         get_chart_response = requests.get(get_chart_url, headers={'Authorization': f'Bearer {API_TOKEN}'})
         get_chart_response.raise_for_status()
