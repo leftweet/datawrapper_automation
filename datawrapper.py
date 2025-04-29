@@ -4,31 +4,32 @@ from bs4 import BeautifulSoup
 from bs4.element import Comment # Import Comment
 import pandas as pd
 
-def find_table_in_soup(soup, table_id):
+def find_element_in_soup(soup, element_type, element_id):
     """
-    Finds a table by its ID within a BeautifulSoup object,
+    Finds an element by its type and ID within a BeautifulSoup object,
     checking both direct presence and commented-out sections.
 
     Args:
         soup (BeautifulSoup): The BeautifulSoup object of the page.
-        table_id (str): The ID of the table to find.
+        element_type (str): The type of element to find (e.g., 'table', 'div').
+        element_id (str): The ID of the element to find.
 
     Returns:
-        BeautifulSoup tag or None: The table element if found, otherwise None.
+        BeautifulSoup tag or None: The element if found, otherwise None.
     """
-    # Try to find the table directly
-    table = soup.find('table', id=table_id)
+    # Try to find the element directly
+    element = soup.find(element_type, id=element_id)
 
-    # If not found directly, search within commented-out tables
-    if not table:
+    # If not found directly, search within commented-out sections
+    if not element:
          comments = soup.find_all(string=lambda text: isinstance(text, Comment))
          for comment in comments:
              comment_soup = BeautifulSoup(comment, 'html.parser')
-             table = comment_soup.find('table', id=table_id)
-             if table:
-                 break # Found the table in a comment
+             element = comment_soup.find(element_type, id=element_id)
+             if element:
+                 break # Found the element in a comment
 
-    return table
+    return element
 
 
 def scrape_line_score(soup):
@@ -43,7 +44,8 @@ def scrape_line_score(soup):
                                   or None if the table is not found or parsing fails.
     """
     table_id = 'line_score'
-    line_score_table = find_table_in_soup(soup, table_id)
+    # Use the generalized function to find the table directly
+    line_score_table = find_element_in_soup(soup, 'table', table_id)
 
     if line_score_table:
         try:
@@ -76,7 +78,7 @@ def scrape_line_score(soup):
 
 def scrape_team_basic_stats(soup, team_abbr):
     """
-    Scrapes the basic box score stats table for a specific team.
+    Scrapes the basic box score stats table for a specific team by finding its container div.
 
     Args:
         soup (BeautifulSoup): The BeautifulSoup object of the page.
@@ -84,50 +86,53 @@ def scrape_team_basic_stats(soup, team_abbr):
 
     Returns:
         pandas.DataFrame or None: A DataFrame containing the team's basic stats,
-                                  or None if the table is not found or parsing fails.
+                                  or None if the div/table is not found or parsing fails.
     """
-    table_id = f'box-{team_abbr}-game-basic' # Construct the ID
-    # Note: The table itself doesn't have the 'div_' prefix in its ID,
-    # but the surrounding div does. We need the table ID.
-    # Based on the screenshot and typical basketball-reference structure, the table ID is 'box-TEAMABBR-game-basic'.
+    div_id = f'div_box-{team_abbr}-game-basic' # ID of the container div
+    table_id = f'box-{team_abbr}-game-basic' # ID of the table inside the div
 
-    team_stats_table = find_table_in_soup(soup, table_id)
-
-
-    if team_stats_table:
-        try:
-            # Extract table headers
-            headers = []
-            # The main headers are typically in the third tr of the thead
-            header_row = team_stats_table.select_one('thead tr:nth-of-type(3)')
-            if header_row:
-                 # Exclude the 'Starters' header and get subsequent th/td
-                 headers = [th.get_text().strip() for th in header_row.find_all(['th', 'td'])]
+    # Find the container div first, handling comments
+    container_div = find_element_in_soup(soup, 'div', div_id)
 
 
-            # Extract table rows (player stats)
-            data = []
-            for row in team_stats_table.select('tbody tr'):
-                # Skip rows that might be subtotals or dividers if necessary,
-                # but for basic stats table, tbody rows are usually players.
-                row_data = [cell.get_text().strip() for cell in row.find_all(['th', 'td'])]
-                data.append(row_data)
+    if container_div:
+        # Now find the table *inside* the container div
+        team_stats_table = container_div.find('table', id=table_id) # Find table within the div
 
-            if headers and data:
-                 # Ensure consistent column count - sometimes last column (Plus/Minus) is missing
-                 # for some rows if player didn't play. Pad with None if needed.
-                 max_cols = len(headers)
-                 padded_data = [row + [None] * (max_cols - len(row)) for row in data]
-                 df = pd.DataFrame(padded_data, columns=headers)
-                 return df
-            else:
-                st.warning(f"Could not extract headers or data from the '{table_id}' table.")
+        if team_stats_table:
+            try:
+                # Extract table headers
+                headers = []
+                # The main headers are typically in the third tr of the thead
+                header_row = team_stats_table.select_one('thead tr:nth-of-type(3)')
+                if header_row:
+                     # Exclude the 'Starters' header and get subsequent th/td
+                     headers = [th.get_text().strip() for th in header_row.find_all(['th', 'td'])]
+
+                # Extract table rows (player stats)
+                data = []
+                for row in team_stats_table.select('tbody tr'):
+                    row_data = [cell.get_text().strip() for cell in row.find_all(['th', 'td'])]
+                    data.append(row_data)
+
+                if headers and data:
+                     # Ensure consistent column count - sometimes last column (Plus/Minus) is missing
+                     # for some rows if player didn't play. Pad with None if needed.
+                     max_cols = len(headers)
+                     padded_data = [row + [None] * (max_cols - len(row)) for row in data]
+                     df = pd.DataFrame(padded_data, columns=headers)
+                     return df
+                else:
+                    st.warning(f"Could not extract headers or data from the '{table_id}' table inside '{div_id}'.")
+                    return None
+            except Exception as e:
+                st.error(f"Error parsing '{table_id}' table inside '{div_id}': {e}")
                 return None
-        except Exception as e:
-            st.error(f"Error parsing '{table_id}' table: {e}")
+        else:
+            st.warning(f"Could not find the '{table_id}' table inside the '{div_id}' div.")
             return None
     else:
-        st.warning(f"Could not find the '{table_id}' table on the page.")
+        st.warning(f"Could not find the '{div_id}' container div on the page.")
         return None
 
 
@@ -172,16 +177,16 @@ def main():
 
                     # Check if we have enough rows in the line score for two teams
                     if len(line_score_df) >= 2:
-                        team1_abbr = line_score_df.iloc[0, 0] # Team abbr from the first row, first column
-                        team2_abbr = line_score_df.iloc[1, 0] # Team abbr from the second row, first column
+                        # Team abbr is in the first column (index 0)
+                        team1_abbr = line_score_df.iloc[0, 0]
+                        team2_abbr = line_score_df.iloc[1, 0]
 
                         # Scrape and display stats for Team 1
                         st.subheader(f"{team1_abbr} Basic Stats")
                         team1_stats_df = scrape_team_basic_stats(soup, team1_abbr)
                         if team1_stats_df is not None:
                             st.dataframe(team1_stats_df)
-                        else:
-                             st.warning(f"Could not scrape basic stats for {team1_abbr}.")
+                        # Error/warning messages are handled inside scrape_team_basic_stats
 
 
                         # Scrape and display stats for Team 2
@@ -189,8 +194,7 @@ def main():
                         team2_stats_df = scrape_team_basic_stats(soup, team2_abbr)
                         if team2_stats_df is not None:
                             st.dataframe(team2_stats_df)
-                        else:
-                            st.warning(f"Could not scrape basic stats for {team2_abbr}.")
+                        # Error/warning messages are handled inside scrape_team_basic_stats
 
                     else:
                         st.warning("Line score does not contain data for two teams to scrape individual stats.")
