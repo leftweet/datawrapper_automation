@@ -156,19 +156,21 @@ def scrape_team_basic_stats(soup, team_abbr):
         st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
         return None
 
-# Updated function to scrape the score margin from column 4 of the PBP table,
-# starting from the 3rd row and skipping rows where columns 3 and 5 are blank.
+# Updated function to scrape home and away scores from column 4 of the PBP table,
+# starting from the 3rd row and skipping rows where columns 3 and 5 are both blank.
 @st.cache_data(ttl=600) # Add caching decorator (cache for 10 minutes)
-def scrape_play_by_play(original_url):
+def scrape_play_by_play(original_url, team1_abbr, team2_abbr): # Accept team abbreviations
     """
-    Scrapes the score margin from column 4 of the Play-by-Play table starting from the 3rd row,
-    skipping rows where columns 3 and 5 are blank, and removes success message.
+    Scrapes the home and away scores from column 4 of the Play-by-Play table
+    starting from the 3rd row, skipping rows where columns 3 and 5 are blank.
 
     Args:
         original_url (str): The original box score URL.
+        team1_abbr (str): The abbreviation of the home team.
+        team2_abbr (str): The abbreviation of the away team.
 
     Returns:
-        pandas.DataFrame or None: A DataFrame containing the score margin data,
+        pandas.DataFrame or None: A DataFrame containing the home and away scores,
                                   or None if scraping fails or the table is not found.
     """
     # Construct the PBP URL
@@ -192,6 +194,9 @@ def scrape_play_by_play(original_url):
 
             data = []
 
+            # Define headers for the output DataFrame
+            output_headers = [team1_abbr, team2_abbr]
+
             # Start iterating from the 3rd row (index 2)
             # Ensure there are at least 3 rows to start from the 3rd
             if len(all_trs) >= 3:
@@ -210,30 +215,28 @@ def scrape_play_by_play(original_url):
                         if col3_text == "" and col5_text == "":
                              continue # Skip this row
 
-                        # Process the score text to calculate the margin
-                        margin = "N/A" # Default value if score format is unexpected
+                        # Process the score text to get home and away scores
+                        home_score_str = "N/A" # Default value if score format is unexpected
+                        away_score_str = "N/A" # Default value if score format is unexpected
+
                         if score_text and '-' in score_text:
                             scores = score_text.split('-')
-                            if len(scores) == 2 and scores[0].isdigit() and scores[1].isdigit():
-                                try:
-                                    home_score = int(scores[0])
-                                    away_score = int(scores[1])
-                                    margin = home_score - away_score
-                                except ValueError:
-                                    # Should not happen if isdigit() is true, but as a safeguard
-                                    pass
+                            if len(scores) == 2:
+                                home_score_str = scores[0].strip()
+                                away_score_str = scores[1].strip()
+                                # Optional: Could add check here if scores are digits if needed
 
 
-                        data.append([margin]) # Append a list with only the calculated margin
+                        data.append([home_score_str, away_score_str]) # Append a list with home and away scores
 
 
                 if data: # Check if data was extracted
-                    # No headers needed, pandas will assign default columns (0)
-                    df = pd.DataFrame(data)
-                    # Removed: st.success("PBP data processing complete.")
+                    # Create DataFrame with team abbreviations as headers
+                    df = pd.DataFrame(data, columns=output_headers)
+                    st.success("PBP data processing complete.") # Keep success message for now? Or remove? User asked to remove previous one. Let's remove this one too for consistency.
                     return df
                 else:
-                    st.warning(f"No score margin data extracted from the PBP table starting from the 3rd row (after skipping rows where columns 3 and 5 were both blank or score format was invalid).")
+                    st.warning(f"No score data extracted from the PBP table starting from the 3rd row (after skipping rows where columns 3 and 5 were both blank or score format was invalid).")
                     return None
             else:
                 st.warning(f"PBP table has fewer than 3 'tr' rows ({len(all_trs)}). Cannot start extraction from the 3rd row.")
@@ -285,34 +288,47 @@ def main():
                 # --- Team Trends Section ---
                 st.header("Team Trends")
 
+                # Scrape the line score table first to get team abbreviations
+                line_score_df = scrape_line_score(soup) # Pass the initial soup
+
+                team1_abbr = "Team1" # Default
+                team2_abbr = "Team2" # Default
+
+                # Extract team abbreviations from the line score
+                if line_score_df is not None and len(line_score_df) >= 2:
+                     try:
+                          # Team abbr is in the first column (index 0)
+                          team1_abbr = line_score_df.iloc[0, 0]
+                          team2_abbr = line_score_df.iloc[1, 0]
+                     except IndexError:
+                          st.warning("Could not extract team abbreviations from the line score table for PBP headers. Using defaults.")
+                     except Exception as e:
+                          st.warning(f"An error occurred while extracting team abbreviations: {e}")
+
+
                 # Scrape and display the Play-by-Play table FIRST
-                # PBP scraping fetches its own URL
-                pbp_df = scrape_play_by_play(box_score_url)
+                # PBP scraping fetches its own URL and now needs team abbreviations
+                pbp_df = scrape_play_by_play(box_score_url, team1_abbr, team2_abbr) # Pass abbreviations
                 if pbp_df is not None:
                     st.dataframe(pbp_df)
                 # Warning is displayed inside scrape_play_by_play if it fails
 
 
-                # Scrape and display the line score table (using the initially fetched soup)
+                # Display the line score table (using the initially fetched soup)
                 st.subheader("Line Score")
-                line_score_df = scrape_line_score(soup) # Pass the initial soup
 
-                # Variables to hold team stats dataframes and abbreviations
+
+                # Variables to hold team stats dataframes
                 team1_stats_df = None
                 team2_stats_df = None
-                team1_abbr = None
-                team2_abbr = None
 
 
                 if line_score_df is not None:
                     st.dataframe(line_score_df)
 
+                    # Proceed to scrape team stats only if line score was successful and has team data
                     if len(line_score_df) >= 2:
                         try:
-                            # Team abbr is in the first column (index 0)
-                            team1_abbr = line_score_df.iloc[0, 0]
-                            team2_abbr = line_score_df.iloc[1, 0]
-
                             # Scrape and display stats for Team 1 (using the initial soup)
                             st.subheader(f"{team1_abbr} Basic Stats")
                             team1_stats_df = scrape_team_basic_stats(soup, team1_abbr) # Pass the initial soup
@@ -326,11 +342,9 @@ def main():
                             if team2_stats_df is not None:
                                 st.dataframe(team2_stats_df)
 
-                        except IndexError:
-                             st.error("Could not extract team abbreviations from the line score table.")
                         except Exception as e:
-                             st.error(f"An error occurred while processing team abbreviations: {e}")
-
+                             # Specific errors for abbr extraction are above, this catches others
+                             st.error(f"An error occurred while processing team stats sections: {e}")
 
                     else:
                         st.warning("Line score does not contain data for two teams to scrape individual stats.")
@@ -367,7 +381,7 @@ def main():
                         team2_players_top_scorers['Team'] = team2_abbr
                         all_player_stats.append(team2_players_top_scorers)
                     else:
-                         st.warning(f"Missing required columns for Player of the Game in {team2_abbr} stats.")
+                         st.warning(f"Missing required columns for Top Scorers in {team2_abbr} stats.")
 
                 # Combine and sort stats for Top Scorers if data was collected
                 if all_player_stats:
