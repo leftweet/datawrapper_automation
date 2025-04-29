@@ -74,7 +74,6 @@ def scrape_line_score(soup):
 def scrape_team_basic_stats(soup, team_abbr):
     """
     Scrapes the basic box score stats table for a specific team by finding its container div.
-    Includes debug output.
 
     Args:
         soup (BeautifulSoup): The BeautifulSoup object of the page.
@@ -87,23 +86,22 @@ def scrape_team_basic_stats(soup, team_abbr):
     div_id = f'div_box-{team_abbr}-game-basic' # ID of the container div
     table_id = f'box-{team_abbr}-game-basic' # ID of the table inside the div
 
-    st.text(f"Attempting to find div '{div_id}'...")
+    # Attempting to find div and table - keep st.success/warning for user feedback
     container_div = find_element_in_soup(soup, 'div', div_id)
 
     if not container_div:
-        st.warning(f"Could not find the '{div_id}' container div on the page.")
+        st.warning(f"Could not find the '{div_id}' container div on the page for {team_abbr}.")
         return None
 
-    st.success(f"Found div '{div_id}'. Attempting to find table '{table_id}' inside...")
+    st.success(f"Found div '{div_id}' for {team_abbr}. Attempting to find table '{table_id}' inside...")
     team_stats_table = container_div.find('table', id=table_id)
 
     if not team_stats_table:
-        st.warning(f"Could not find the '{table_id}' table inside the '{div_id}' div.")
+        st.warning(f"Could not find the '{table_id}' table inside the '{div_id}' div for {team_abbr}.")
         return None
 
-    st.success(f"Found table '{table_id}' inside div '{div_id}'. Attempting to extract data...")
+    st.success(f"Found table '{table_id}' for {team_abbr}. Attempting to extract data...")
 
-    # --- Main try block for parsing logic ---
     try:
         # Extract table headers
         headers = []
@@ -112,39 +110,26 @@ def scrape_team_basic_stats(soup, team_abbr):
         thead = team_stats_table.find('thead')
         if thead:
              header_rows = thead.find_all('tr')
-             st.text(f"Found {len(header_rows)} rows in the thead.")
-             for i, row in enumerate(header_rows):
+             # Iterate through header rows to find the one with main stats headers (e.g., 'MP')
+             for row in header_rows:
                  row_cells = row.find_all(['th', 'td'])
                  cell_texts = [cell.get_text().strip() for cell in row_cells]
-                 st.text(f"Checking thead row {i+1}: {cell_texts}")
-                 # Look for a characteristic header like 'MP' in the row's text
                  if 'MP' in cell_texts:
                      headers = cell_texts
                      header_row_element = row
-                     st.text(f"Identified header row {i+1} containing 'MP'.")
                      break # Found the header row
 
-
-        st.text(f"Header row identified: {header_row_element is not None}")
         if not header_row_element:
-             st.warning("Could not identify a suitable header row in the thead.")
-             # We can still proceed to extract data if headers are missing,
-             # but the DataFrame will not have column names.
-             # Returning None here makes more sense if headers are essential.
-             # Let's return None if headers aren't found.
+             st.warning(f"Could not identify a suitable header row in the thead for {team_abbr}.")
              return None
 
-
-        st.text(f"Extracted Headers: {headers}")
-
-
-        # --- Data extraction ---
+        # Extract table rows (player stats)
         data = []
         if team_stats_table.find('tbody'): # Ensure tbody exists
+             # Select only tbody rows that are not total rows ('thead' class) or empty rows
              player_rows = team_stats_table.select('tbody tr:not(.thead)')
-             st.text(f"Number of potential player rows found in tbody: {len(player_rows)}")
 
-             for i, row in enumerate(player_rows):
+             for row in player_rows:
                 row_cells = row.find_all(['th', 'td'])
                 if not row_cells or row_cells[0].get_text().strip() == '':
                      continue
@@ -152,32 +137,26 @@ def scrape_team_basic_stats(soup, team_abbr):
                 row_data = [cell.get_text().strip() for cell in row_cells]
                 data.append(row_data)
 
-
-        st.text(f"Total data rows extracted: {len(data)}")
-
-        if data: # Check if data was extracted (headers check is above)
+        if data: # Check if data was extracted
              max_cols = len(headers)
-             st.text(f"Expected number of columns (from headers): {max_cols}")
              # Check consistency of row lengths before padding
              inconsistent_rows = [i for i, row in enumerate(data) if len(row) != max_cols]
              if inconsistent_rows:
-                 st.warning(f"Found {len(inconsistent_rows)} rows with inconsistent column counts before padding.")
+                 st.warning(f"Found {len(inconsistent_rows)} rows with inconsistent column counts for {team_abbr} before padding.")
 
              padded_data = [row + [None] * (max_cols - len(row)) for row in data]
-             st.success("Headers and data extracted successfully.")
+             st.success(f"Headers and data extracted successfully for {team_abbr}.")
              df = pd.DataFrame(padded_data, columns=headers)
-             st.text("DataFrame created.")
              return df
         else:
-            st.warning(f"No data rows extracted from the '{table_id}' table inside '{div_id}'.")
+            st.warning(f"No data rows extracted from the '{table_id}' table inside '{div_id}' for {team_abbr}.")
             return None
 
-    except Exception as e: # This except block catches errors during header/data parsing
-        st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}': {e}")
+    except Exception as e: # Catch errors during header/data parsing
+        st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
         return None
 
 
-# The main function remains the same as the previous correct version
 def main():
     """
     Streamlit app for analyzing box scores.
@@ -219,16 +198,16 @@ def main():
 
                     if len(line_score_df) >= 2:
                         try:
+                            # Team abbr is in the first column (index 0)
                             team1_abbr = line_score_df.iloc[0, 0]
                             team2_abbr = line_score_df.iloc[1, 0]
-
-                            st.text(f"Attempting to scrape stats for teams: {team1_abbr}, {team2_abbr}")
 
                             # Scrape and display stats for Team 1
                             st.subheader(f"{team1_abbr} Basic Stats")
                             team1_stats_df = scrape_team_basic_stats(soup, team1_abbr)
                             if team1_stats_df is not None:
                                 st.dataframe(team1_stats_df)
+
 
                             # Scrape and display stats for Team 2
                             st.subheader(f"{team2_abbr} Basic Stats")
