@@ -157,7 +157,7 @@ def scrape_team_basic_stats(soup, team_abbr):
         return None
 
 
-# The main function is updated to filter the top 5 players with ties
+# The main function is updated to simplify the Top Scorers headers
 def main():
     """
     Streamlit app for analyzing box scores.
@@ -236,9 +236,8 @@ def main():
                     st.warning("Could not display line score. Cannot proceed to scrape team stats.")
 
 
-                # --- Top 5 Scorers Section ---
-                st.header("Top 5 Scorers")
-                # Process and display combined player stats here
+                # --- Top Scorers Section ---
+                st.header("Top Scorers") # Changed header text
 
                 all_player_stats = []
 
@@ -246,7 +245,7 @@ def main():
                 if team1_stats_df is not None and team1_abbr:
                     if 'Starters' in team1_stats_df.columns and 'PTS' in team1_stats_df.columns:
                         team1_players = team1_stats_df[['Starters', 'PTS']].copy()
-                        team1_players = team1_players.rename(columns={'Starters': 'Player'}) # Rename column for consistency
+                        team1_players = team1_players.rename(columns={'Starters': 'Player'})
                         team1_players['Team'] = team1_abbr
                         all_player_stats.append(team1_players)
                     else:
@@ -257,7 +256,7 @@ def main():
                 if team2_stats_df is not None and team2_abbr:
                     if 'Starters' in team2_stats_df.columns and 'PTS' in team2_stats_df.columns:
                         team2_players = team2_stats_df[['Starters', 'PTS']].copy()
-                        team2_players = team2_players.rename(columns={'Starters': 'Player'}) # Rename column for consistency
+                        team2_players = team2_players.rename(columns={'Starters': 'Player'})
                         team2_players['Team'] = team2_abbr
                         all_player_stats.append(team2_players)
                     else:
@@ -275,17 +274,13 @@ def main():
 
                     # --- Filter for Top 5 with ties ---
                     if len(sorted_players_df) > 0:
-                        # Get the points of the 5th player (index 4, if exists)
-                        # Handle case with less than 5 players gracefully
                         if len(sorted_players_df) >= 5:
                             fifth_player_pts = sorted_players_df.iloc[4]['PTS']
-                            # Filter players with points >= the 5th player's points
                             top_scorers_df = sorted_players_df[sorted_players_df['PTS'] >= fifth_player_pts]
                         else:
-                            # If less than 5 players, just show all of them
                             top_scorers_df = sorted_players_df
 
-                        st.subheader("Top Scorers (including ties with 5th place)")
+                        # Removed: st.subheader("Top Scorers (including ties with 5th place)")
                         st.dataframe(top_scorers_df)
                     else:
                         st.info("No player stats available to determine top scorers.")
