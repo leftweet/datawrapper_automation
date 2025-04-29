@@ -156,18 +156,17 @@ def scrape_team_basic_stats(soup, team_abbr):
         st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
         return None
 
-# Updated function to scrape Play-by-Play table by finding header row with class='thead' and specific content
+# Updated function to scrape columns 5, 6, and 7 from PBP table starting from the 3rd row
 @st.cache_data(ttl=600) # Add caching decorator (cache for 10 minutes)
 def scrape_play_by_play(original_url):
     """
-    Scrapes the Play-by-Play table from a basketball-reference.com PBP URL.
-    Includes debug output and robust header finding within the table body.
+    Scrapes columns 5, 6, and 7 from the Play-by-Play table starting from the 3rd row.
 
     Args:
         original_url (str): The original box score URL.
 
     Returns:
-        pandas.DataFrame or None: A DataFrame containing the Play-by-Play data,
+        pandas.DataFrame or None: A DataFrame containing the selected PBP data,
                                   or None if scraping fails or the table is not found.
     """
     # Construct the PBP URL
@@ -175,7 +174,7 @@ def scrape_play_by_play(original_url):
     table_id = 'pbp' # ID of the Play-by-Play table
 
     st.subheader("Play-by-Play") # Add subheader for the PBP table
-    st.text(f"Attempting to fetch PBP URL: {pbp_url}")
+    # Removed debug: st.text(f"Attempting to fetch PBP URL: {pbp_url}")
 
     try:
         # Fetch the PBP page content
@@ -183,101 +182,44 @@ def scrape_play_by_play(original_url):
         response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
         soup = BeautifulSoup(response.content, 'html.parser')
 
-        st.text(f"Successfully fetched PBP page.")
+        # Removed debug: st.text(f"Successfully fetched PBP page.")
 
         # Find the PBP table by its ID, handling comments
         pbp_table = find_element_in_soup(soup, 'table', table_id)
 
         if pbp_table:
-            st.text(f"Found PBP table with ID '{table_id}'. Attempting to extract data...")
-            headers = []
-            header_row_element = None
+            # Removed debug: st.text(f"Found PBP table with ID '{table_id}'. Attempting to extract data...")
 
-            # --- Robust Header Extraction: Find tr with class='thead' and specific content ---
-            # Search within the entire table, as thead rows might be in tbody
-            all_thead_trs = pbp_table.find_all('tr', class_='thead') # Find all tr with class 'thead'
-
-            st.text(f"Found {len(all_thead_trs)} rows with class='thead' in PBP table.")
-
-            for i, row in enumerate(all_thead_trs):
-                 row_cells = row.find_all(['th', 'td'])
-                 cell_texts = [cell.get_text().strip() for cell in row_cells]
-                 st.text(f"Checking PBP row with class='thead' ({i+1}/{len(all_thead_trs)}): {cell_texts}")
-
-                 # Check if 'Time' and 'Score' are present in the cell texts
-                 if 'Time' in cell_texts and 'Score' in cell_texts:
-                     headers = cell_texts
-                     header_row_element = row
-                     st.text(f"Identified PBP header row containing 'Time' and 'Score' with class='thead'.")
-                     break # Found the header row
-
-
-            st.text(f"PBP Header row identified: {header_row_element is not None}")
-            if not header_row_element:
-                 st.warning(f"Could not identify a suitable header row in the PBP table (looking for class='thead' and content).")
-                 return None # Cannot proceed without headers
-
-
-            st.text(f"Extracted Headers: {headers}")
-
-            # --- Data extraction from tbody, skipping header row and quarter headers ---
             data = []
-            tbody = pbp_table.find('tbody')
+            tbody = pbp_table.find('tbody') # Data rows are expected in tbody
             if tbody:
                 tbody_rows = tbody.find_all('tr')
-                st.text(f"Found {len(tbody_rows)} rows in the PBP tbody for data extraction.")
-                for i, row in enumerate(tbody_rows):
-                    # Skip the identified header row element if it's found in tbody
-                    if row == header_row_element:
-                         st.text(f"Skipping identified header row in tbody.")
-                         continue
+                # Removed debug: st.text(f"Found {len(tbody_rows)} rows in the PBP tbody.")
 
-                    # Skip quarter break rows if they have an id like 'q1', 'q2', etc.
-                    if 'q' in row.get('id', ''):
-                         st.text(f"Skipping PBP tbody row {i+1} with ID like 'q'.")
-                         continue
-
+                # Start iterating from the 3rd row (index 2)
+                for i, row in enumerate(tbody_rows[2:]): # Slice from index 2 to the end
                     row_cells = row.find_all(['th', 'td'])
-                    # Skip empty rows or rows that don't look like a play (e.g., few cells)
-                    # A typical play row should have at least 3 cells (Time, Event/Team, Score/Description)
-                    if not row_cells or len(row_cells) < 3:
-                        st.text(f"Skipping PBP tbody row {i+1} with insufficient cells ({len(row_cells)}).")
-                        continue
-
-                    row_data = [cell.get_text().strip() for cell in row_cells]
-                    data.append(row_data)
-                    # Optional: print first few data rows
-                    # if len(data) <= 5:
-                    #     st.text(f"PBP data row {len(data)}: {row_data}")
+                    # Check if the row has at least 7 cells to extract columns 5, 6, and 7 (indices 4, 5, 6)
+                    if len(row_cells) >= 7:
+                        col5_text = row_cells[4].get_text().strip()
+                        col6_text = row_cells[5].get_text().strip()
+                        col7_text = row_cells[6].get_text().strip()
+                        data.append([col5_text, col6_text, col7_text])
+                    # Removed debug for skipping rows
 
 
-            st.text(f"Total PBP data rows extracted: {len(data)}")
+                # Removed debug: st.text(f"Total PBP data rows extracted: {len(data)}")
 
-            if data: # Check if data was extracted (headers check is above)
-                max_cols = len(headers) # Use header length for expected columns
-                st.text(f"Expected number of PBP columns: {max_cols}")
-
-                # Ensure data rows have the same number of columns (pad/truncate if necessary)
-                padded_data = []
-                for i, row in enumerate(data):
-                     padded_row = row + [None] * (max_cols - len(row))
-                     if len(padded_row) > max_cols:
-                          st.text(f"Truncating PBP data row {i+1} (length {len(row)}) to match header count ({max_cols}).")
-                          padded_row = padded_row[:max_cols]
-                     padded_data.append(padded_row)
-
-
-                st.success("PBP Headers and data processing complete.")
-                df = pd.DataFrame(padded_data, columns=headers) # Use extracted headers as columns
-                st.text("PBP DataFrame created.")
-                st.text("Returning PBP DataFrame.") # Debug message
-                return df
-            else:
-                st.warning(f"No valid data rows extracted from the '{table_id}' table on the PBP page.")
-                return None
-
-            # No need for an outer try/except here as specific errors are handled
-            # and general exceptions are caught by the main try/except block in main.
+                if data: # Check if data was extracted
+                    # No headers needed based on user request, pandas will assign default columns
+                    df = pd.DataFrame(data)
+                    # Removed debug: st.success("PBP data processing complete.")
+                    # Removed debug: st.text("PBP DataFrame created.")
+                    # Removed debug: st.text("Returning PBP DataFrame.")
+                    return df
+                else:
+                    st.warning(f"No data extracted from columns 5, 6, and 7 starting from the 3rd row of the PBP table.")
+                    return None
 
         else:
             st.warning(f"Could not find the '{table_id}' table on the PBP page.")
