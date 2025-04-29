@@ -156,7 +156,7 @@ def scrape_team_basic_stats(soup, team_abbr):
         st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
         return None
 
-# Updated function to scrape Play-by-Play table by finding header row within the table body
+# Updated function to scrape Play-by-Play table by finding header row with class='thead' and specific content
 @st.cache_data(ttl=600) # Add caching decorator (cache for 10 minutes)
 def scrape_play_by_play(original_url):
     """
@@ -192,26 +192,24 @@ def scrape_play_by_play(original_url):
             st.text(f"Found PBP table with ID '{table_id}'. Attempting to extract data...")
             headers = []
             header_row_element = None
-            all_trs = pbp_table.find_all('tr') # Find all rows in the table (including tbody)
 
-            st.text(f"Found {len(all_trs)} total rows in PBP table.")
+            # --- Robust Header Extraction: Find tr with class='thead' and specific content ---
+            # Search within the entire table, as thead rows might be in tbody
+            all_thead_trs = pbp_table.find_all('tr', class_='thead') # Find all tr with class 'thead'
 
-            # --- Robust Header Extraction from all rows (looking for class='thead' and content) ---
-            for i, row in enumerate(all_trs):
-                 # Check if the row has the class 'thead'
-                 is_thead_class = 'thead' in row.get('class', [])
-                 st.text(f"Checking PBP row {i+1} (class='thead': {is_thead_class}): {row.get_text().strip()}") # Debug row content
+            st.text(f"Found {len(all_thead_trs)} rows with class='thead' in PBP table.")
 
-                 if is_thead_class:
-                     row_cells = row.find_all(['th', 'td'])
-                     cell_texts = [cell.get_text().strip() for cell in row_cells]
-                     st.text(f"Checking PBP row {i+1} cell texts: {cell_texts}")
-                     # Look for characteristic headers like 'Time' and 'Score'
-                     if 'Time' in cell_texts and 'Score' in cell_texts:
-                         headers = cell_texts
-                         header_row_element = row
-                         st.text(f"Identified PBP header row {i+1} containing 'Time' and 'Score' with class='thead'.")
-                         break # Found the header row
+            for i, row in enumerate(all_thead_trs):
+                 row_cells = row.find_all(['th', 'td'])
+                 cell_texts = [cell.get_text().strip() for cell in row_cells]
+                 st.text(f"Checking PBP row with class='thead' ({i+1}/{len(all_thead_trs)}): {cell_texts}")
+
+                 # Check if 'Time' and 'Score' are present in the cell texts
+                 if 'Time' in cell_texts and 'Score' in cell_texts:
+                     headers = cell_texts
+                     header_row_element = row
+                     st.text(f"Identified PBP header row containing 'Time' and 'Score' with class='thead'.")
+                     break # Found the header row
 
 
             st.text(f"PBP Header row identified: {header_row_element is not None}")
@@ -278,6 +276,9 @@ def scrape_play_by_play(original_url):
                 st.warning(f"No valid data rows extracted from the '{table_id}' table on the PBP page.")
                 return None
 
+            # No need for an outer try/except here as specific errors are handled
+            # and general exceptions are caught by the main try/except block in main.
+
         else:
             st.warning(f"Could not find the '{table_id}' table on the PBP page.")
             return None
@@ -285,7 +286,7 @@ def scrape_play_by_play(original_url):
     except requests.exceptions.RequestException as e:
         st.error(f"Error fetching the PBP URL: {e}")
         return None
-    except Exception as e:
+    except Exception as e: # Catch unexpected errors during the scraping process
         st.error(f"An unexpected error occurred during PBP scraping: {e}")
         return None
 
