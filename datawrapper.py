@@ -346,6 +346,10 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                             "useMixedColors": False
                         }
                     ],
+                    "custom-range-y": [
+                        "-2",
+                        ""
+                    ],
                     "connector-lines": True,
                     "interpolation": "monotone-x",
                     "hover-highlight": True,
