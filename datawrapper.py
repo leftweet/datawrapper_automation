@@ -265,7 +265,6 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "source-url": "", # Consider adding the original_url here if possible
                     "intro": f"Game flow chart for {team_a_col} vs. {team_b_col}.",
                     "byline": "",
-                    "get-the-data": false,
                     "aria-description": f"Line chart showing the score progression for {team_a_col} and {team_b_col} throughout the game.",
                     "number-format": "-",
                     "number-divisor": 0,
@@ -355,7 +354,8 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "interpolation": "monotone-x",
                     "hover-highlight": True,
                     "plotHeightFixed": 350,
-                    "show-color-key": True
+                    "show-color-key": True,
+                    "get-the-data": false
                 }
             }
         }
