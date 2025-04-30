@@ -421,10 +421,6 @@ def main():
 
     process_button_pressed = st.button("Process Box Score and Create Chart")
 
-    if not process_button_pressed:
-         st.info("Enter a URL and click 'Process Box Score and Create Chart' to see the analysis and generate a Datawrapper chart.")
-         st.info("Make sure your Datawrapper API token is configured in `.streamlit/secrets.toml`.")
-
 
     if process_score_pressed := process_button_pressed:
         if box_score_url:
