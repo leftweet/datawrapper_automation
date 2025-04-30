@@ -364,11 +364,9 @@ def main():
     """
     Streamlit app for analyzing box scores and creating Datawrapper charts.
     """
-    st.title("Box Score Analyzer & Datawrapper Chart Creator")
+    st.title("Game Flow Chart Creator")
 
-    st.write("Enter the URL of a basketball-reference.com box score to analyze:")
-
-    box_score_url = st.text_input("Box Score URL", "")
+    box_score_url = st.text_input("Box Score URL (basketball-reference.com only)", "")
 
     process_button_pressed = st.button("Process Box Score and Create Chart")
 
