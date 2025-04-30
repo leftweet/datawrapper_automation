@@ -206,8 +206,8 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
 # --- Datawrapper API Interaction Function ---
 def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
-    Creates a Datawrapper chart from a pandas DataFrame and publishes it.
-    Displays the direct link to the published chart.
+    Creates a Datawrapper chart from a pandas DataFrame, publishes it,
+    and embeds it in the Streamlit app using st.iframe.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
@@ -369,17 +369,22 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         publish_response.raise_for_status()
         st.success("Chart published!")
 
-        # --- Display the direct chart link ---
+        # --- Embed the chart using st.iframe ---
         if chart_id:
+            st.subheader("Datawrapper Game Flow Chart")
+            embed_url = f"https://datawrapper.dwcdn.net/{chart_id}/1/"
+            st.iframe(embed_url, height=450) # Use st.iframe with the direct URL
+
+            # Also display the direct chart URL as text
             chart_url = f"https://www.datawrapper.de/_/{chart_id}"
-            st.subheader("Datawrapper Game Flow Chart Link")
-            st.write(f"View the chart here: {chart_url}")
+            st.write(f"Direct Chart Link (for reference): {chart_url}")
 
         else:
-            st.warning("Could not create or publish chart, no chart ID available to generate link.")
+            st.warning("Could not create or publish chart, no chart ID available to embed.")
+            # Fallback to showing the link if embedding fails (though chart_id should be available here if publish succeeded)
             # This else block is primarily for safety if chart_id wasn't set for some unexpected reason
-
-        # Removed all code related to embedding the iframe directly
+            st.subheader("Datawrapper Chart Link")
+            st.write("Chart ID not available. Could not generate link.")
 
 
     except requests.exceptions.RequestException as e:
