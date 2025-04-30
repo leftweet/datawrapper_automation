@@ -158,7 +158,7 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
 def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
     Creates a Datawrapper chart from a pandas DataFrame, publishes it,
-    and embeds the basic iframe in the Streamlit app using components.html.
+    and displays the embed code as a text string.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
@@ -322,22 +322,23 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         publish_response = requests.post(publish_url, headers={'Authorization': f'Bearer {API_TOKEN}'})
         publish_response.raise_for_status()
 
-        # --- Embed the basic iframe using components.html with white background ---
+        # --- Display the full embed code as a text string ---
         if chart_id:
-            # Construct the basic iframe HTML using an f-string with white background style
-            basic_iframe_html = f"""
-<iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 100%; border: none; background-color: white;" height="500" data-external="1"></iframe>
+            st.subheader("Datawrapper Embed Code")
+            # Construct the full embed code string using an f-string
+            # Meticulously escaping all literal curly braces in the JavaScript
+            full_embed_code = f"""
+<iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="400" data-external="1"></iframe><script type="text/javascript">!function(){{"use strict";window.addEventListener("message",(function(a){{if(void 0!==a.data["datawrapper-height"]){{var e=document.querySelectorAll("iframe");for(var t in a.data["datawrapper-height"])for(var r,i=0;r=e[i];i++){{if(r.contentWindow===a.source){{var d=a.data["datawrapper-height"][t]+"px";r.style.height=d}}}}}}}})}()}();</script>
 """
-            # Use components.html to embed the iframe
-            components.html(basic_iframe_html, height=600)
+            # Use st.code to display the string
+            st.code(full_embed_code, language='html')
 
-            # Also display the direct chart URL as text
+            # Also display the direct chart URL as text (optional, but can be helpful)
             chart_url = f"https://www.datawrapper.de/_/{chart_id}"
             st.write(f"Direct Chart Link (for reference): {chart_url}")
 
         else:
-            st.warning("Could not create or publish chart, no chart ID available to embed.")
-            # Fallback to showing the link if embedding fails (though chart_id should be available here if publish succeeded)
+            st.warning("Could not create or publish chart, no chart ID available to generate embed code.")
             # This else block is primarily for safety if chart_id wasn't set for some unexpected reason
             st.subheader("Datawrapper Chart Link")
             st.write("Chart ID not available. Could not generate link.")
@@ -365,6 +366,8 @@ def main():
     """
     st.title("Game Flow Chart Creator")
 
+    st.write("Enter the URL of a basketball-reference.com box score to analyze:")
+
     box_score_url = st.text_input("Box Score URL (basketball-reference.com only)", "")
 
     process_button_pressed = st.button("Process Box Score and Create Chart")
@@ -378,6 +381,9 @@ def main():
                 response = requests.get(box_score_url)
                 response.raise_for_status()
                 soup = BeautifulSoup(response.content, 'html.parser')
+
+                # --- Game Flow Chart Section ---
+                st.header("Game Flow Chart") # Renamed header
 
                 line_score_df = scrape_line_score(soup)
 
@@ -410,12 +416,6 @@ def main():
                     st.info("Datawrapper chart creation skipped because API is not configured.")
 
                 # Removed the display of the line score table
-                # Removed st.subheader("Line Score")
-                # if line_score_df is not None:
-                #     st.dataframe(line_score_df)
-                # else:
-                #     st.warning("Could not display line score.")
-
                 # Removed the sections for Top Scorers and Player of the Game
 
             except requests.exceptions.RequestException as e:
