@@ -79,56 +79,7 @@ def scrape_line_score(soup):
     else:
         return None
 
-def scrape_team_basic_stats(soup, team_abbr):
-    """
-    Scrapes the basic box score stats table for a specific team by finding its container div.
-    """
-    div_id = f'div_box-{team_abbr}-game-basic'
-    table_id = f'box-{team_abbr}-game-basic'
-    container_div = find_element_in_soup(soup, 'div', div_id)
-    if not container_div:
-        st.warning(f"Could not find the '{div_id}' container div on the page for {team_abbr}.")
-        return None
-    team_stats_table = container_div.find('table', id=table_id)
-    if not team_stats_table:
-        st.warning(f"Could not find the '{table_id}' table inside the '{div_id}' div for {team_abbr}.")
-        return None
-    try:
-        headers = []
-        header_row_element = None
-        thead = team_stats_table.find('thead')
-        if thead:
-             header_rows = thead.find_all('tr')
-             for row in header_rows:
-                 row_cells = row.find_all(['th', 'td'])
-                 cell_texts = [cell.get_text().strip() for cell in row_cells]
-                 if 'MP' in cell_texts:
-                     headers = cell_texts
-                     header_row_element = row
-                     break
-        if not header_row_element:
-             st.warning(f"Could not identify a suitable header row in the thead for {team_abbr}.")
-             return None
-        data = []
-        if team_stats_table.find('tbody'):
-             player_rows = team_stats_table.select('tbody tr:not(.thead)')
-             for row in player_rows:
-                row_cells = row.find_all(['th', 'td'])
-                if not row_cells or row_cells[0].get_text().strip() == '' or row_cells[0].name != 'th':
-                     continue
-                row_data = [cell.get_text().strip() for cell in row_cells]
-                data.append(row_data)
-        if data:
-             max_cols = len(headers)
-             padded_data = [row + [None] * (max_cols - len(row)) for row in data]
-             df = pd.DataFrame(padded_data, columns=headers)
-             return df
-        else:
-            st.warning(f"No data rows extracted from the '{table_id}' table inside '{div_id}' for {team_abbr}.")
-            return None
-    except Exception as e:
-        st.error(f"An error occurred while parsing the table content for '{table_id}' inside '{div_id}' for {team_abbr}: {e}")
-        return None
+# Removed scrape_team_basic_stats function as it's no longer needed
 
 @st.cache_data(ttl=600)
 def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
@@ -373,7 +324,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
 
         # --- Embed the basic iframe using components.html with white background ---
         if chart_id:
-            st.subheader("Datawrapper Game Flow Chart")
+            # Removed st.subheader("Datawrapper Game Flow Chart")
             # Construct the basic iframe HTML using an f-string with white background style
             basic_iframe_html = f"""
 <iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 100%; border: none; background-color: white;" height="500" data-external="1"></iframe>
@@ -461,105 +412,12 @@ def main():
 
                 # Display the line score table
                 st.subheader("Line Score")
-                team1_stats_df = None
-                team2_stats_df = None
-
                 if line_score_df is not None:
                     st.dataframe(line_score_df)
-                    if len(line_score_df) >= 2:
-                        try:
-                            st.subheader(f"{team1_abbr} Basic Stats")
-                            team1_stats_df = scrape_team_basic_stats(soup, team1_abbr)
-                            if team1_stats_df is not None:
-                                st.dataframe(team1_stats_df)
-
-                            st.subheader(f"{team2_abbr} Basic Stats")
-                            team2_stats_df = scrape_team_basic_stats(soup, team2_abbr)
-                            if team2_stats_df is not None:
-                                st.dataframe(team2_stats_df)
-                        except Exception as e:
-                             st.error(f"An error occurred while processing team stats sections: {e}")
-                    else:
-                        st.warning("Line score does not contain data for two teams to scrape individual stats.")
                 else:
-                    st.warning("Could not display line score. Cannot proceed to scrape team stats.")
+                    st.warning("Could not display line score.")
 
-                # --- Top Scorers Section ---
-                st.header("Top Scorers")
-                all_player_stats = []
-                required_cols_top_scorers = ['Starters', 'PTS']
-
-                if team1_stats_df is not None and team1_abbr:
-                    if all(col in team1_stats_df.columns for col in required_cols_top_scorers):
-                        team1_players_top_scorers = team1_stats_df[required_cols_top_scorers].copy()
-                        team1_players_top_scorers = team1_players_top_scorers.rename(columns={'Starters': 'Player'})
-                        team1_players_top_scorers['Team'] = team1_abbr
-                        all_player_stats.append(team1_players_top_scorers)
-                    else:
-                        st.warning(f"Missing required columns for Top Scorers in {team1_abbr} stats.")
-
-                if team2_stats_df is not None and team2_abbr:
-                    if all(col in team2_stats_df.columns for col in required_cols_top_scorers):
-                        team2_players_top_scorers = team2_stats_df[required_cols_top_scorers].copy()
-                        team2_players_top_scorers = team2_players_top_scorers.rename(columns={'Starters': 'Player'})
-                        team2_players_top_scorers['Team'] = team2_abbr
-                        all_player_stats.append(team2_players_top_scorers)
-                    else:
-                         st.warning(f"Missing required columns for Player of the Game in {team2_abbr} stats.")
-
-                if all_player_stats:
-                    combined_df_top_scorers = pd.concat(all_player_stats, ignore_index=True)
-                    combined_df_top_scorers['PTS'] = pd.to_numeric(combined_df_top_scorers['PTS'], errors='coerce').fillna(0)
-                    sorted_players_df_top_scorers = combined_df_top_scorers.sort_values(by='PTS', ascending=False)
-
-                    if len(sorted_players_df_top_scorers) > 0:
-                        if len(sorted_players_df_top_scorers) >= 5:
-                            fifth_player_pts = sorted_players_df_top_scorers.iloc[4]['PTS']
-                            top_scorers_df = sorted_players_df_top_scorers[sorted_players_df_top_scorers['PTS'] >= fifth_player_pts]
-                        else:
-                            top_scorers_df = sorted_players_df_top_scorers
-                        st.dataframe(top_scorers_df)
-                    else:
-                        st.info("No player stats available to determine top scorers.")
-                else:
-                    st.info("Player stats could not be processed for Top Scorers.")
-
-                # --- Player of the Game Section ---
-                st.header("Player of the Game")
-                pog_candidates_list = []
-                required_cols_pog = ['Starters', 'GmSc', 'TRB', 'AST', 'STL', 'BLK', 'PTS']
-
-                if team1_stats_df is not None and team1_abbr:
-                    if all(col in team1_stats_df.columns for col in required_cols_pog):
-                        team1_players_pog = team1_stats_df[required_cols_pog].copy()
-                        team1_players_pog = team1_players_pog.rename(columns={'Starters': 'Player'})
-                        pog_candidates_list.append(team1_players_pog)
-                    else:
-                         st.warning(f"Missing required columns for Player of the Game in {team1_abbr} stats.")
-
-                if team2_stats_df is not None and team2_abbr:
-                    if all(col in team2_stats_df.columns for col in required_cols_pog):
-                        team2_players_pog = team2_stats_df[required_cols_pog].copy()
-                        team2_players_pog = team2_players_top_scorers.rename(columns={'Starters': 'Player'})
-                        pog_candidates_list.append(team2_players_pog)
-                    else:
-                         st.warning(f"Missing required columns for Player of the Game in {team2_abbr} stats.")
-
-                if pog_candidates_list:
-                    combined_pog_candidates_df = pd.concat(pog_candidates_list, ignore_index=True)
-                    combined_pog_candidates_df['GmSc'] = pd.to_numeric(combined_pog_candidates_df['GmSc'], errors='coerce').fillna(0)
-
-                    if len(combined_pog_candidates_df) > 0:
-                        player_of_the_game_index = combined_pog_candidates_df['GmSc'].idxmax()
-                        player_of_the_game_row = combined_pog_candidates_df.loc[player_of_the_game_index]
-                        pog_display_cols = ['Player', 'TRB', 'AST', 'STL', 'BLK', 'PTS', 'GmSc']
-                        player_of_the_game_stats = player_of_the_game_row[pog_display_cols]
-                        player_of_the_game_df = player_of_the_game_stats.to_frame().T
-                        st.dataframe(player_of_the_game_df)
-                    else:
-                        st.info("No player stats available to determine Player of the Game.")
-                else:
-                    st.info("Player stats could not be processed for Player of the Game.")
+                # Removed the sections for Top Scorers and Player of the Game
 
             except requests.exceptions.RequestException as e:
                 st.error(f"Error fetching the URL: {e}")
