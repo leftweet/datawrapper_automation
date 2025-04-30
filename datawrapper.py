@@ -381,7 +381,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
 <iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 100%; border: none; background-color: white;" height="400" data-external="1"></iframe>
 """
             # Use components.html to embed the iframe
-            components.html(basic_iframe_html, height=450)
+            components.html(basic_iframe_html, height=600)
 
             # Also display the direct chart URL as text
             chart_url = f"https://www.datawrapper.de/_/{chart_id}"
