@@ -324,7 +324,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
 
         # --- Embed the basic iframe using components.html with white background ---
         if chart_id:
-            # Removed st.subheader("Datawrapper Game Flow Chart")
+            st.subheader("Datawrapper Game Flow Chart") # Kept this subheader as it's for the embedded chart
             # Construct the basic iframe HTML using an f-string with white background style
             basic_iframe_html = f"""
 <iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 100%; border: none; background-color: white;" height="500" data-external="1"></iframe>
@@ -398,6 +398,9 @@ def main():
                           st.warning("Could not extract team abbreviations from the line score table for PBP headers. Using defaults.")
                      except Exception as e:
                           st.warning(f"An error occurred while extracting team abbreviations: {e}")
+                else:
+                    st.warning("Could not scrape line score to get team abbreviations. Using defaults.")
+
 
                 # Scrape Play-by-Play data (table will not be displayed)
                 pbp_df = scrape_play_by_play(box_score_url, team1_abbr, team2_abbr)
@@ -405,17 +408,19 @@ def main():
 
                 # --- Trigger Datawrapper Chart Creation ---
                 # This is where the datawrapper_api logic is called
-                if datawrapper_configured:
+                if datawrapper_configured and pbp_df is not None:
                     create_and_publish_datawrapper_chart(pbp_df, team1_abbr, team2_abbr)
+                elif datawrapper_configured and pbp_df is None:
+                     st.warning("Skipping Datawrapper chart creation because Play-by-Play data could not be scraped.")
                 else:
                     st.info("Datawrapper chart creation skipped because API is not configured.")
 
-                # Display the line score table
-                st.subheader("Line Score")
-                if line_score_df is not None:
-                    st.dataframe(line_score_df)
-                else:
-                    st.warning("Could not display line score.")
+                # Removed the display of the line score table
+                # Removed st.subheader("Line Score")
+                # if line_score_df is not None:
+                #     st.dataframe(line_score_df)
+                # else:
+                #     st.warning("Could not display line score.")
 
                 # Removed the sections for Top Scorers and Player of the Game
 
