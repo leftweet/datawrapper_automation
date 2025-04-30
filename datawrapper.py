@@ -357,7 +357,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "show-color-key": True,
                 },
                 "publish": {
-                "get-the-data": false,
+                "get-the-data": False,
                 }
             }
         }
