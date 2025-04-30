@@ -135,7 +135,7 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
     """
     Scrapes the home and away scores from column 4 of the Play-by-Play table
     starting from the 3rd row, skipping rows where columns 3 and 5 are blank.
-    Adds a 'Time' column.
+    Removes the 'Time' column, using the row index as the implicit x-axis.
     """
     pbp_url = original_url.replace("/boxscores/", "/boxscores/pbp/")
     table_id = 'pbp'
@@ -151,17 +151,17 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
         if pbp_table:
             all_trs = pbp_table.find_all('tr')
             data = []
-            # Add 'Time' as the first column header
-            output_headers = ['Time', team1_abbr, team2_abbr]
+            # Headers will only be the team abbreviations now
+            output_headers = [team1_abbr, team2_abbr]
 
             if len(all_trs) >= 3:
                 for row in all_trs[2:]:
                     row_cells = row.find_all(['th', 'td'])
 
                     # Need at least 5 cells to check columns 3 (idx 2) and 5 (idx 4) and extract column 4 (idx 3)
-                    # Also need cell 1 (idx 0) for Time
+                    # We no longer need cell 1 (idx 0) for Time in the output data
                     if len(row_cells) >= 5:
-                        time_text = row_cells[0].get_text().strip() if len(row_cells) > 0 and row_cells[0] else ""
+                        # time_text = row_cells[0].get_text().strip() if len(row_cells) > 0 and row_cells[0] else "" # Removed time_text
                         col3_text = row_cells[2].get_text().strip() if len(row_cells) > 2 and row_cells[2] else ""
                         score_text = row_cells[3].get_text().strip() if len(row_cells) > 3 and row_cells[3] else ""
                         col5_text = row_cells[4].get_text().strip() if len(row_cells) > 4 and row_cells[4] else ""
@@ -178,14 +178,15 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
                                 home_score_str = scores[0].strip()
                                 away_score_str = scores[1].strip()
 
-                        # Append a list with Time, home score, and away score
-                        data.append([time_text, home_score_str, away_score_str])
+                        # Append a list with home score and away score (Time is removed)
+                        data.append([home_score_str, away_score_str])
 
                 if data:
                     df = pd.DataFrame(data, columns=output_headers)
                     # Convert score columns to numeric, coercing errors
                     df[team1_abbr] = pd.to_numeric(df[team1_abbr], errors='coerce').fillna(0)
                     df[team2_abbr] = pd.to_numeric(df[team2_abbr], errors='coerce').fillna(0)
+                    # The DataFrame index (0, 1, 2, ...) will serve as the x-axis
                     return df
                 else:
                     st.warning(f"No score data extracted from the PBP table starting from the 3rd row (after skipping rows where columns 3 and 5 were both blank or score format was invalid).")
@@ -221,21 +222,23 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     chart_id = None # Initialize chart_id
 
     try:
-        # Save DataFrame to temporary CSV
+        # Save DataFrame to temporary CSV (index=True to include the numerical index)
         st.info(f"Saving PBP data to temporary file: {csv_filename}...")
-        df.to_csv(csv_filename, index=False)
+        df.to_csv(csv_filename, index=True) # Save index as the first column
         st.success(f"Temporary file created: {csv_filename}")
 
-        # Read column headers from the saved CSV
+        # Read column headers from the saved CSV (including the new index header)
         with open(csv_filename, newline='', encoding='utf-8') as f:
             reader = csv.reader(f, delimiter=',')
             headers = next(reader)
 
+        # The headers will now include an empty string or 'None' for the index column,
+        # followed by the two team abbreviations. We need at least 3 columns total.
         if len(headers) < 3:
-            st.error("CSV must have at least 3 columns (Time, Team1_Score, Team2_Score).")
-            return
+             st.error("CSV must have at least 3 columns (Index, Team1_Score, Team2_Score).")
+             return
 
-        x_axis_col = headers[0] # Should be 'Time'
+        # The actual data columns start from the second column (index 1)
         team_a_col = headers[1] # Should be team1_abbr
         team_b_col = headers[2] # Should be team2_abbr
         chart_title = f"{team_a_col} vs. {team_b_col} Game Flow" # Get chart title from team abbreviations
@@ -299,9 +302,9 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "sharing": {"enabled": False, "url": "", "auto": False},
                     "shape": "fixed",
                     "size": "fixed",
-                    "x-pos": "off",
+                    "x-pos": "off", # Let Datawrapper handle x-axis from index
                     "y-pos": "left",
-                    "x-axis": {"log": False, "range": ["", ""], "ticks": []},
+                    "x-axis": {"log": False, "range": ["", ""], "ticks": []}, # Let Datawrapper handle x-axis ticks
                     "x-grid": "off",
                     "y-axis": {"log": False, "range": ["", ""], "ticks": []},
                     "y-grid": "on",
@@ -310,11 +313,11 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "scale-y": "linear",
                     "sort-by": "first",
                     "tooltip": {"body": "", "title": "", "sticky": False, "enabled": True},
-                    "category": "direct",
+                    "category": "direct", # 'direct' is suitable when the first column is the x-axis
                     "max-size": 10,
                     "outlines": False,
                     "overlays": [],
-                    "x-format": "auto",
+                    "x-format": "auto", # Let Datawrapper handle x-axis format
                     "y-format": "auto",
                     "color-key": True,
                     "base-color": "#2e2e2e",
@@ -516,12 +519,12 @@ def main():
                     combined_df_top_scorers['PTS'] = pd.to_numeric(combined_df_top_scorers['PTS'], errors='coerce').fillna(0)
                     sorted_players_df_top_scorers = combined_df_top_scorers.sort_values(by='PTS', ascending=False)
 
-                    if len(sorted_players_df_top_scorers) > 0:
-                        if len(sorted_players_df_top_scorers) >= 5:
-                            fifth_player_pts = sorted_players_df_top_scorers.iloc[4]['PTS']
-                            top_scorers_df = sorted_players_df_top_scorers[sorted_players_df_top_scorers['PTS'] >= fifth_player_pts]
+                    if len(sorted_players_top_scorers) > 0:
+                        if len(sorted_players_top_scorers) >= 5:
+                            fifth_player_pts = sorted_players_top_scorers.iloc[4]['PTS']
+                            top_scorers_df = sorted_players_top_scorers[sorted_players_top_scorers['PTS'] >= fifth_player_pts]
                         else:
-                            top_scorers_df = sorted_players_df_top_scorers
+                            top_scorers_df = sorted_players_top_scorers
                         st.dataframe(top_scorers_df)
                     else:
                         st.info("No player stats available to determine top scorers.")
