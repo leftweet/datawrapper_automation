@@ -9,7 +9,8 @@ import pandas as pd
 import json
 import os
 import csv
-# Removed streamlit.components.v1 as components since we are not embedding HTML directly
+import streamlit.components.v1 as components # Import components for embedding HTML
+
 # Removed time import as retry logic is removed
 
 # --- Datawrapper API Configuration ---
@@ -207,18 +208,17 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
 def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
     Creates a Datawrapper chart from a pandas DataFrame and publishes it.
-    Displays the direct link to the published chart.
+    Returns the chart ID if successful, otherwise returns None.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
-        return
+        return None
 
     st.subheader("Datawrapper Chart Creation")
 
     # Define temporary CSV filename
     csv_filename = f"pbp_data_{team1_abbr}_{team2_abbr}.csv"
-    chart_url = None # Initialize chart_url
-    chart_id = None # Initialize chart_id
+    chart_id = None
 
     try:
         # Save DataFrame to temporary CSV
@@ -233,7 +233,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
 
         if len(headers) < 3:
             st.error("CSV must have at least 3 columns (Time, Team1_Score, Team2_Score).")
-            return
+            return None
 
         x_axis_col = headers[0] # Should be 'Time'
         team_a_col = headers[1] # Should be team1_abbr
@@ -369,28 +369,20 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         publish_response.raise_for_status()
         st.success("Chart published!")
 
-        # --- Display the direct chart link ---
-        if chart_id:
-            chart_url = f"https://www.datawrapper.de/_/{chart_id}"
-            st.subheader("Datawrapper Game Flow Chart Link")
-            st.write(f"View the chart here: {chart_url}")
-
-        else:
-            st.warning("Could not create or publish chart, no chart ID available to generate link.")
-            # This else block is primarily for safety if chart_id wasn't set for some unexpected reason
-
-        # Removed all code related to embedding the iframe directly
-
+        return chart_id # Return the chart ID
 
     except requests.exceptions.RequestException as e:
         st.error(f"Datawrapper API Error: {e}")
         if e.response is not None:
             st.error(f"Error Response Status Code: {e.response.status_code}")
             st.error(f"Error Response Body: {e.response.text}")
+        return None
     except FileNotFoundError:
         st.error(f"Temporary CSV file not found: {csv_filename}")
+        return None
     except Exception as e:
         st.error(f"An unexpected error occurred during Datawrapper interaction: {e}")
+        return None
     finally:
         # Clean up the temporary CSV file
         if os.path.exists(csv_filename):
@@ -444,15 +436,26 @@ def main():
 
                 # Scrape and display the Play-by-Play table
                 pbp_df = scrape_play_by_play(box_score_url, team1_abbr, team2_abbr)
+                chart_id = None # Initialize chart_id here
+
                 if pbp_df is not None:
                     st.dataframe(pbp_df)
 
                     # --- Trigger Datawrapper Chart Creation ---
                     # This is where the datawrapper_api logic is called
                     if datawrapper_configured:
-                        create_and_publish_datawrapper_chart(pbp_df, team1_abbr, team2_abbr)
+                        chart_id = create_and_publish_datawrapper_chart(pbp_df, team1_abbr, team2_abbr)
                     else:
                         st.info("Datawrapper chart creation skipped because API is not configured.")
+
+                # --- Embed the Datawrapper Chart (if created) ---
+                if chart_id:
+                    st.subheader("Datawrapper Game Flow Chart")
+                    embed_code = f"""
+                        <iframe title="Game Flow" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="400" data-external="1"></iframe><script type="text/javascript">!function(){{"use strict";window.addEventListener("message",(function(a){{if(void 0!==a.data["datawrapper-height"]){{var e=document.querySelectorAll("iframe");for(var t in a.data["datawrapper-height"])for(var r,i=0;r=e[i];i++)if(r.contentWindow===a.source){{var d=a.data["datawrapper-height"][t]+"px";r.style.height=d}}}}}}))}();
+                        </script>
+                    """
+                    components.html(embed_code, height=400) # Use components.html to embed the iframe
 
                 # Display the line score table
                 st.subheader("Line Score")
@@ -478,6 +481,7 @@ def main():
                         st.warning("Line score does not contain data for two teams to scrape individual stats.")
                 else:
                     st.warning("Could not display line score. Cannot proceed to scrape team stats.")
+
 
                 # --- Top Scorers Section ---
                 st.header("Top Scorers")
@@ -535,7 +539,7 @@ def main():
                 if team2_stats_df is not None and team2_abbr:
                     if all(col in team2_stats_df.columns for col in required_cols_pog):
                         team2_players_pog = team2_stats_df[required_cols_pog].copy()
-                        team2_players_pog = team2_players_top_scorers.rename(columns={'Starters': 'Player'})
+                        team2_players_pog = team2_players_pog.rename(columns={'Starters': 'Player'}) # Corrected rename
                         pog_candidates_list.append(team2_players_pog)
                     else:
                          st.warning(f"Missing required columns for Player of the Game in {team2_abbr} stats.")
@@ -555,6 +559,7 @@ def main():
                         st.info("No player stats available to determine Player of the Game.")
                 else:
                     st.info("Player stats could not be processed for Player of the Game.")
+
 
             except requests.exceptions.RequestException as e:
                 st.error(f"Error fetching the URL: {e}")
