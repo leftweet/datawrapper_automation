@@ -325,6 +325,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
 
         # --- Embed the basic iframe using components.html with white background ---
         if chart_id:
+            st.subheader("Datawrapper Game Flow Chart") # Kept this subheader as it's for the embedded chart
             # Construct the basic iframe HTML using an f-string with white background style
             basic_iframe_html = f"""
 <iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 100%; border: none; background-color: white;" height="500" data-external="1"></iframe>
@@ -332,7 +333,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
             # Use components.html to embed the iframe
             components.html(basic_iframe_html, height=600)
 
-            st.subheader("Datawrapper Embed Code (Responsive)")
+            st.subheader("Datawrapper Embed Code (Responsive - Text String)")
             # Use the exact literal string provided by the user for the responsive embed code
             full_responsive_embed_code = """
 <iframe title="Game Flow" aria-label="Interactive line chart" id="datawrapper-chart-kUuOU" src="https://datawrapper.dwcdn.net/kUuOU/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="400" data-external="1"></iframe><script type="text/javascript">!function(){"use strict";window.addEventListener("message",(function(a){if(void 0!==a.data["datawrapper-height"]){var e=document.querySelectorAll("iframe");for(var t in a.data["datawrapper-height"])for(var r,i=0;r=e[i];i++)if(r.contentWindow===a.source){var d=a.data["datawrapper-height"][t]+"px";r.style.height=d}}}))}();
