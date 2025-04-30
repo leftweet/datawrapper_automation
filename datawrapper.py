@@ -360,6 +360,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "blocks": {
                         "get-the-data": False
                     }
+                }
             }
         }
         patch_response = requests.patch(metadata_url, headers=HEADERS_JSON, data=json.dumps(metadata_patch))
