@@ -139,7 +139,7 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
     pbp_url = original_url.replace("/boxscores/", "/boxscores/pbp/")
     table_id = 'pbp'
 
-    st.subheader("Play-by-Play")
+    # Removed st.subheader("Play-by-Play")
 
     try:
         response = requests.get(pbp_url)
@@ -431,8 +431,8 @@ def main():
                 response.raise_for_status()
                 soup = BeautifulSoup(response.content, 'html.parser')
 
-                # --- Team Trends Section ---
-                st.header("Team Trends")
+                # --- Game Flow Chart Section ---
+                st.header("Game Flow Chart") # Renamed header
 
                 line_score_df = scrape_line_score(soup)
 
@@ -448,17 +448,16 @@ def main():
                      except Exception as e:
                           st.warning(f"An error occurred while extracting team abbreviations: {e}")
 
-                # Scrape and display the Play-by-Play table
+                # Scrape Play-by-Play data (table will not be displayed)
                 pbp_df = scrape_play_by_play(box_score_url, team1_abbr, team2_abbr)
-                if pbp_df is not None:
-                    st.dataframe(pbp_df)
+                # Removed st.dataframe(pbp_df) to hide the table
 
-                    # --- Trigger Datawrapper Chart Creation ---
-                    # This is where the datawrapper_api logic is called
-                    if datawrapper_configured:
-                        create_and_publish_datawrapper_chart(pbp_df, team1_abbr, team2_abbr)
-                    else:
-                        st.info("Datawrapper chart creation skipped because API is not configured.")
+                # --- Trigger Datawrapper Chart Creation ---
+                # This is where the datawrapper_api logic is called
+                if datawrapper_configured:
+                    create_and_publish_datawrapper_chart(pbp_df, team1_abbr, team2_abbr)
+                else:
+                    st.info("Datawrapper chart creation skipped because API is not configured.")
 
                 # Display the line score table
                 st.subheader("Line Score")
@@ -511,19 +510,13 @@ def main():
                 if all_player_stats:
                     combined_df_top_scorers = pd.concat(all_player_stats, ignore_index=True)
                     combined_df_top_scorers['PTS'] = pd.to_numeric(combined_df_top_scorers['PTS'], errors='coerce').fillna(0)
-                    # Corrected variable name here
                     sorted_players_df_top_scorers = combined_df_top_scorers.sort_values(by='PTS', ascending=False)
 
-                    # Corrected variable name here
                     if len(sorted_players_df_top_scorers) > 0:
-                        # Corrected variable name here
                         if len(sorted_players_df_top_scorers) >= 5:
-                            # Corrected variable name here
                             fifth_player_pts = sorted_players_df_top_scorers.iloc[4]['PTS']
-                            # Corrected variable name here
                             top_scorers_df = sorted_players_df_top_scorers[sorted_players_df_top_scorers['PTS'] >= fifth_player_pts]
                         else:
-                            # Corrected variable name here
                             top_scorers_df = sorted_players_df_top_scorers
                         st.dataframe(top_scorers_df)
                     else:
@@ -547,7 +540,6 @@ def main():
                 if team2_stats_df is not None and team2_abbr:
                     if all(col in team2_stats_df.columns for col in required_cols_pog):
                         team2_players_pog = team2_stats_df[required_cols_pog].copy()
-                        # Corrected variable name here
                         team2_players_pog = team2_players_top_scorers.rename(columns={'Starters': 'Player'})
                         pog_candidates_list.append(team2_players_pog)
                     else:
