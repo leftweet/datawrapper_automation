@@ -315,6 +315,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "hover-highlight": True,
                     "plotHeightFixed": 350,
                     "show-color-key": True,
+                    "value-label-colors": True
                 },
                 "publish": {
                     "blocks": {
