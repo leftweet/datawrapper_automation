@@ -339,7 +339,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
 <iframe title="Game Flow" aria-label="Interactive line chart" id="datawrapper-chart-CHART_ID" src="https://datawrapper.dwcdn.net/CHART_ID/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="400" data-external="1"></iframe><script type="text/javascript">!function(){"use strict";window.addEventListener("message",(function(a){if(void 0!==a.data["datawrapper-height"]){var e=document.querySelectorAll("iframe");for(var t in a.data["datawrapper-height"])for(var r,i=0;r=e[i];i++)if(r.contentWindow===a.source){var d=a.data["datawrapper-height"][t]+"px";r.style.height=d}}}))}();
 </script>
 """
-            full_responsive_embed_code = embed_code_placeholder.replace("CHART_ID","{chart_id}")
+            full_responsive_embed_code = embed_code_placeholder.replace("CHART_ID",{chart_id})
             # Use st.code to display the string
             st.code(full_responsive_embed_code, language='html')
 
