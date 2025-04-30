@@ -299,11 +299,11 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                             "id": "area_fill_1",
                             "to": team_b_col,
                             "from": team_a_col,
-                            "color": "#cccccc",
-                            "opacity": 0.3,
-                            "colorNegative": "#E31A1C",
+                            "color": "#2e2e2e",
+                            "opacity": 0.2,
+                            "colorNegative": "#aaaaaa",
                             "interpolation": "linear",
-                            "useMixedColors": False
+                            "useMixedColors": True
                         }
                     ],
                     "custom-range-y": [
