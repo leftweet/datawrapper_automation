@@ -273,6 +273,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                 },
                 "visualize": {
                     "dark-mode-invert": True,
+                    "get-the-data": False,
                     "lines": {
                         team_a_col: {
                             "symbols": {"on": "last", "style": "hollow", "enabled": True},
@@ -355,7 +356,6 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "hover-highlight": True,
                     "plotHeightFixed": 350,
                     "show-color-key": True,
-                    "get-the-data": false
                 }
             }
         }
