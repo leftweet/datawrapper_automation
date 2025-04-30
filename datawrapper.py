@@ -135,7 +135,6 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
     """
     Scrapes the home and away scores from column 4 of the Play-by-Play table
     starting from the 3rd row, skipping rows where columns 3 and 5 are blank.
-    Removes the 'Time' column, using the row index as the implicit x-axis.
     """
     pbp_url = original_url.replace("/boxscores/", "/boxscores/pbp/")
     table_id = 'pbp'
@@ -214,7 +213,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
         return
 
-    st.subheader("Datawrapper Chart Creation")
+    # Removed the "Datawrapper Chart Creation" header and step-by-step messages
 
     # Define temporary CSV filename
     csv_filename = f"pbp_data_{team1_abbr}_{team2_abbr}.csv"
@@ -223,9 +222,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
 
     try:
         # Save DataFrame to temporary CSV (index=True to include the numerical index)
-        st.info(f"Saving PBP data to temporary file: {csv_filename}...")
         df.to_csv(csv_filename, index=True) # Save index as the first column
-        st.success(f"Temporary file created: {csv_filename}")
 
         # Read column headers from the saved CSV (including the new index header)
         with open(csv_filename, newline='', encoding='utf-8') as f:
@@ -244,7 +241,6 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         chart_title = f"{team_a_col} vs. {team_b_col} Game Flow" # Get chart title from team abbreviations
 
         # Step 2: Create the chart
-        st.info("Attempting to create Datawrapper chart...")
         chart_config = {
             "title": chart_title, # Use the dynamically created title
             "type": "d3-lines"
@@ -252,19 +248,15 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         response = requests.post(f"{BASE_URL}/charts", headers=HEADERS_JSON, data=json.dumps(chart_config))
         response.raise_for_status()
         chart_id = response.json()['id']
-        st.success(f"Chart created successfully with ID: {chart_id}")
 
         # Step 3: Upload CSV data
-        st.info(f"Attempting to upload data to chart ID: {chart_id}...")
         upload_url = f"{BASE_URL}/charts/{chart_id}/data"
         with open(csv_filename, 'r', encoding='utf-8') as file:
             csv_data = file.read()
         upload_response = requests.put(upload_url, headers=HEADERS_CSV, data=csv_data.encode('utf-8'))
         upload_response.raise_for_status()
-        st.success("CSV data uploaded successfully.")
 
         # Step 4: Construct dynamic metadata
-        st.info(f"Attempting to patch metadata for chart ID: {chart_id}...")
         metadata_url = f"{BASE_URL}/charts/{chart_id}"
         metadata_patch = {
             "metadata": {
@@ -364,14 +356,11 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         }
         patch_response = requests.patch(metadata_url, headers=HEADERS_JSON, data=json.dumps(metadata_patch))
         patch_response.raise_for_status()
-        st.success("Metadata patched successfully.")
 
         # Step 5: Publish chart
-        st.info(f"Attempting to publish chart ID: {chart_id}...")
         publish_url = f"{BASE_URL}/charts/{chart_id}/publish"
         publish_response = requests.post(publish_url, headers={'Authorization': f'Bearer {API_TOKEN}'})
         publish_response.raise_for_status()
-        st.success("Chart published!")
 
         # --- Embed the basic iframe using components.html with white background ---
         if chart_id:
@@ -408,7 +397,6 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         # Clean up the temporary CSV file
         if os.path.exists(csv_filename):
             os.remove(csv_filename)
-            st.info(f"Temporary file removed: {csv_filename}")
 
 
 # --- Main Streamlit App Logic ---
