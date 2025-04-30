@@ -158,7 +158,7 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
 def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
     Creates a Datawrapper chart from a pandas DataFrame, publishes it,
-    and displays the embed codes as text strings.
+    and embeds the basic iframe in the Streamlit app using components.html.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
@@ -322,29 +322,23 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         publish_response = requests.post(publish_url, headers={'Authorization': f'Bearer {API_TOKEN}'})
         publish_response.raise_for_status()
 
-        # --- Display the full embed code as a text string ---
+        # --- Embed the basic iframe using components.html with white background ---
         if chart_id:
-            st.subheader("Datawrapper Embed Code (Responsive)")
-            # Construct the full responsive embed code string using an f-string
-            # Meticulously escaping all literal curly braces in the JavaScrip
-            # Use st.code to display the string
-            st.code(full_responsive_embed_code, language='html')
-
-            st.subheader("Datawrapper Embed Code (Basic Iframe)")
             # Construct the basic iframe HTML using an f-string with white background style
             basic_iframe_html = f"""
 <iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 100%; border: none; background-color: white;" height="500" data-external="1"></iframe>
 """
-            # Use st.code to display the string
-            st.code(basic_iframe_html, language='html')
+            # Use components.html to embed the iframe
+            components.html(basic_iframe_html, height=600)
 
-
-            # Also display the direct chart URL as text (optional, but can be helpful)
+            # Also display the direct chart URL as text
             chart_url = f"https://www.datawrapper.de/_/{chart_id}"
             st.write(f"Direct Chart Link (for reference): {chart_url}")
 
         else:
-            st.warning("Could not create or publish chart, no chart ID available to generate embed code.")
+            st.warning("Could not create or publish chart, no chart ID available to embed.")
+            # Fallback to showing the link if embedding fails (though chart_id should be available here if publish succeeded)
+            # This else block is primarily for safety if chart_id wasn't set for some unexpected reason
             st.subheader("Datawrapper Chart Link")
             st.write("Chart ID not available. Could not generate link.")
 
@@ -370,8 +364,6 @@ def main():
     Streamlit app for analyzing box scores and creating Datawrapper charts.
     """
     st.title("Game Flow Chart Creator")
-
-    st.write("Enter the URL of a basketball-reference.com box score to analyze:")
 
     box_score_url = st.text_input("Box Score URL (basketball-reference.com only)", "")
 
@@ -421,6 +413,12 @@ def main():
                     st.info("Datawrapper chart creation skipped because API is not configured.")
 
                 # Removed the display of the line score table
+                # Removed st.subheader("Line Score")
+                # if line_score_df is not None:
+                #     st.dataframe(line_score_df)
+                # else:
+                #     st.warning("Could not display line score.")
+
                 # Removed the sections for Top Scorers and Player of the Game
 
             except requests.exceptions.RequestException as e:
