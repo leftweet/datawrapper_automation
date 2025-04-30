@@ -274,7 +274,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "intro": f"Game flow chart for {team_a_col} vs. {team_b_col}.",
                     "byline": "",
                     "aria-description": f"Line chart showing the score progression for {team_a_col} and {team_b_col} throughout the game.",
-                    "number-format": ".",
+                    "number-format": "-",
                     "number-divisor": 0,
                     "number-append": "",
                     "number-prepend": ""
@@ -317,7 +317,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "max-size": 10,
                     "outlines": False,
                     "overlays": [],
-                    "x-format": "auto", # Let Datawrapper handle x-axis format
+                    "x-format": ".", # Let Datawrapper handle x-axis format
                     "y-format": "auto",
                     "color-key": True,
                     "base-color": "#2e2e2e",
