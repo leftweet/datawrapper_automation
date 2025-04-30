@@ -9,7 +9,7 @@ import pandas as pd
 import json
 import os
 import csv
-import streamlit.components.v1 as components # Import components for embedding HTML
+# Removed streamlit.components.v1 as components since we are not embedding HTML directly
 # Removed time import as retry logic is removed
 
 # --- Datawrapper API Configuration ---
@@ -207,7 +207,7 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
 def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
     Creates a Datawrapper chart from a pandas DataFrame and publishes it.
-    Constructs and embeds the responsive iframe in the Streamlit app using an f-string.
+    Displays the direct link to the published chart.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
@@ -369,32 +369,17 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         publish_response.raise_for_status()
         st.success("Chart published!")
 
-        # --- Construct and embed the responsive iframe HTML using an f-string ---
+        # --- Display the direct chart link ---
         if chart_id:
-            st.subheader("Datawrapper Game Flow Chart")
-            # Using an f-string for the template, meticulously escaping all literal curly braces
-            responsive_iframe_code = f"""
-<iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="400" data-external="1"></iframe><script type="text/javascript">!function(){{var e=document.querySelectorAll("iframe");for(var t in a.data["datawrapper-height"])for(var r,i=0;r=e[i];i++)if(r.contentWindow===a.source){{var d=a.data["datawrapper-height"][t]+"px";r.style.height=d}}}}}}()}();</script>
-"""
-            # No need for .format() here as it's an f-string
-
-            # Use st.components.v1.html to embed the iframe
-            # Set a reasonable height, adjust as needed
-            components.html(responsive_iframe_code, height=450)
-
-            # Optionally, keep the chart URL available as text
             chart_url = f"https://www.datawrapper.de/_/{chart_id}"
-            st.write(f"Direct Chart Link (for reference): {chart_url}")
+            st.subheader("Datawrapper Game Flow Chart Link")
+            st.write(f"View the chart here: {chart_url}")
 
         else:
-            st.warning("Could not create or publish chart, no chart ID available to embed.")
-            # Fallback to showing the link if embedding fails (though chart_id should be available here if publish succeeded)
+            st.warning("Could not create or publish chart, no chart ID available to generate link.")
             # This else block is primarily for safety if chart_id wasn't set for some unexpected reason
-            st.subheader("Datawrapper Chart Link")
-            st.write("Chart ID not available. Could not generate link.")
 
-        # Removed debugging prints for JSON and embed code extraction checks
-        # --- End of embedding ---
+        # Removed all code related to embedding the iframe directly
 
 
     except requests.exceptions.RequestException as e:
