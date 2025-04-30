@@ -380,7 +380,7 @@ def main():
 
     box_score_url = st.text_input("Box Score URL (basketball-reference.com only)", "")
 
-    process_button_pressed = st.button("Process Box Score and Create Chart")
+    process_button_pressed = st.button("Create Chart")
 
 
     if process_score_pressed := process_button_pressed:
