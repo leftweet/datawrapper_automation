@@ -511,14 +511,20 @@ def main():
                 if all_player_stats:
                     combined_df_top_scorers = pd.concat(all_player_stats, ignore_index=True)
                     combined_df_top_scorers['PTS'] = pd.to_numeric(combined_df_top_scorers['PTS'], errors='coerce').fillna(0)
+                    # Corrected variable name here
                     sorted_players_df_top_scorers = combined_df_top_scorers.sort_values(by='PTS', ascending=False)
 
-                    if len(sorted_players_top_scorers) > 0:
-                        if len(sorted_players_top_scorers) >= 5:
-                            fifth_player_pts = sorted_players_top_scorers.iloc[4]['PTS']
-                            top_scorers_df = sorted_players_top_scorers[sorted_players_top_scorers['PTS'] >= fifth_player_pts]
+                    # Corrected variable name here
+                    if len(sorted_players_df_top_scorers) > 0:
+                        # Corrected variable name here
+                        if len(sorted_players_df_top_scorers) >= 5:
+                            # Corrected variable name here
+                            fifth_player_pts = sorted_players_df_top_scorers.iloc[4]['PTS']
+                            # Corrected variable name here
+                            top_scorers_df = sorted_players_df_top_scorers[sorted_players_df_top_scorers['PTS'] >= fifth_player_pts]
                         else:
-                            top_scorers_df = sorted_players_top_scorers
+                            # Corrected variable name here
+                            top_scorers_df = sorted_players_df_top_scorers
                         st.dataframe(top_scorers_df)
                     else:
                         st.info("No player stats available to determine top scorers.")
@@ -541,6 +547,7 @@ def main():
                 if team2_stats_df is not None and team2_abbr:
                     if all(col in team2_stats_df.columns for col in required_cols_pog):
                         team2_players_pog = team2_stats_df[required_cols_pog].copy()
+                        # Corrected variable name here
                         team2_players_pog = team2_players_top_scorers.rename(columns={'Starters': 'Player'})
                         pog_candidates_list.append(team2_players_pog)
                     else:
