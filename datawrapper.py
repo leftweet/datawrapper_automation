@@ -228,7 +228,8 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "lines": {
                         team_a_col: {
                             "symbols": {"on": "last", "style": "hollow", "enabled": True},
-                            "valueLabels": {"first": False, "enabled": True}
+                            "valueLabels": {"first": False, "enabled": True},
+                            "number-append": " points",
                         },
                         team_b_col: {
                             "symbols": {"on": "last", "style": "hollow", "enabled": True},
@@ -283,7 +284,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "yAxisLabels": {
                         "enabled": True,
                         "alignment": "left",
-                        "placement": "outside"
+                        "placement": "inside"
                     },
                     "area-opacity": 0.5,
                     "custom-area-fills": [
