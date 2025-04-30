@@ -9,7 +9,7 @@ import pandas as pd
 import json
 import os
 import csv
-# Removed streamlit.components.v1 as components since we are not embedding HTML directly
+import streamlit.components.v1 as components # Import components for embedding HTML
 # Removed time import as retry logic is removed
 
 # --- Datawrapper API Configuration ---
@@ -207,7 +207,7 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
 def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
     Creates a Datawrapper chart from a pandas DataFrame, publishes it,
-    and embeds it in the Streamlit app using st.iframe.
+    and embeds the basic iframe in the Streamlit app using components.html.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
@@ -369,11 +369,15 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         publish_response.raise_for_status()
         st.success("Chart published!")
 
-        # --- Embed the chart using st.iframe ---
+        # --- Embed the basic iframe using components.html ---
         if chart_id:
             st.subheader("Datawrapper Game Flow Chart")
-            embed_url = f"https://datawrapper.dwcdn.net/{chart_id}/1/"
-            st.iframe(embed_url, height=450) # Use st.iframe with the direct URL
+            # Construct the basic iframe HTML using an f-string
+            basic_iframe_html = f"""
+<iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 100%; border: none;" height="400" data-external="1"></iframe>
+"""
+            # Use components.html to embed the iframe
+            components.html(basic_iframe_html, height=450)
 
             # Also display the direct chart URL as text
             chart_url = f"https://www.datawrapper.de/_/{chart_id}"
