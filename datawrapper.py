@@ -333,19 +333,20 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
             # Use components.html to embed the iframe
             components.html(basic_iframe_html, height=600)
 
-            st.subheader("Datawrapper Embed Code (Responsive - Text String)")
+            st.subheader("Datawrapper Responsive Embed Code")
             # Use the exact literal string provided by the user for the responsive embed code
-            full_responsive_embed_code = """
-<iframe title="Game Flow" aria-label="Interactive line chart" id="datawrapper-chart-kUuOU" src="https://datawrapper.dwcdn.net/kUuOU/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="400" data-external="1"></iframe><script type="text/javascript">!function(){"use strict";window.addEventListener("message",(function(a){if(void 0!==a.data["datawrapper-height"]){var e=document.querySelectorAll("iframe");for(var t in a.data["datawrapper-height"])for(var r,i=0;r=e[i];i++)if(r.contentWindow===a.source){var d=a.data["datawrapper-height"][t]+"px";r.style.height=d}}}))}();
+            embed_code_placeholder = """
+<iframe title="Game Flow" aria-label="Interactive line chart" id="datawrapper-chart-CHART_ID" src="https://datawrapper.dwcdn.net/CHART_ID/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="400" data-external="1"></iframe><script type="text/javascript">!function(){"use strict";window.addEventListener("message",(function(a){if(void 0!==a.data["datawrapper-height"]){var e=document.querySelectorAll("iframe");for(var t in a.data["datawrapper-height"])for(var r,i=0;r=e[i];i++)if(r.contentWindow===a.source){var d=a.data["datawrapper-height"][t]+"px";r.style.height=d}}}))}();
 </script>
 """
+            full_responsive_embed_code = embed_code_placeholder.replace("CHART_ID","{chart_id}")
             # Use st.code to display the string
             st.code(full_responsive_embed_code, language='html')
 
 
             # Also display the direct chart URL as text (optional, but can be helpful)
             chart_url = f"https://www.datawrapper.de/_/{chart_id}"
-            st.write(f"Direct Chart Link (for reference): {chart_url}")
+            st.write(f"Direct chart link: {chart_url}")
 
         else:
             st.warning("Could not create or publish chart, no chart ID available to embed.")
