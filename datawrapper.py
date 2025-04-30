@@ -325,7 +325,6 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
 
         # --- Embed the basic iframe using components.html with white background ---
         if chart_id:
-            st.subheader("Datawrapper Game Flow Chart") # Kept this subheader as it's for the embedded chart
             # Construct the basic iframe HTML using an f-string with white background style
             basic_iframe_html = f"""
 <iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 100%; border: none; background-color: white;" height="500" data-external="1"></iframe>
