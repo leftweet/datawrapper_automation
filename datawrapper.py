@@ -158,7 +158,7 @@ def scrape_play_by_play(original_url, team1_abbr, team2_abbr):
 def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
     """
     Creates a Datawrapper chart from a pandas DataFrame, publishes it,
-    and displays the embed code as a text string.
+    and displays the embed codes as text strings.
     """
     if not datawrapper_configured:
         st.warning("Datawrapper API is not configured. Skipping chart creation.")
@@ -322,18 +322,28 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         publish_response = requests.post(publish_url, headers={'Authorization': f'Bearer {API_TOKEN}'})
         publish_response.raise_for_status()
 
-        # --- Display the full embed code as a text string using the literal string ---
+        # --- Display the full embed code as a text string ---
         if chart_id:
-            st.subheader("Datawrapper Embed Code")
-            # Use the exact literal string provided by the user
-            full_embed_code = """
-<iframe title="Game Flow" aria-label="Interactive line chart" id="datawrapper-chart-kUuOU" src="https://datawrapper.dwcdn.net/kUuOU/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="400" data-external="1"></iframe><script type="text/javascript">!function(){"use strict";window.addEventListener("message",(function(a){if(void 0!==a.data["datawrapper-height"]){var e=document.querySelectorAll("iframe");for(var t in a.data["datawrapper-height"])for(var r,i=0;r=e[i];i++)if(r.contentWindow===a.source){var d=a.data["datawrapper-height"][t]+"px";r.style.height=d}}}))}();
+            st.subheader("Datawrapper Embed Code (Responsive)")
+            # Construct the full responsive embed code string using an f-string
+            # Meticulously escaping all literal curly braces in the JavaScript
+            full_responsive_embed_code = f"""
+<iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="400" data-external="1"></iframe><script type="text/javascript">!function(){{"use strict";window.addEventListener("message",(function(a){{if(void 0!==a.data["datawrapper-height"]){{var e=document.querySelectorAll("iframe");for(var t in a.data["datawrapper-height"])for(var r,i=0;r=e[i];i++){{if(r.contentWindow===a.source){{var d=a.data["datawrapper-height"][t}+"px";r.style.height=d}}}}}}}})}()}();
 </script>
 """
             # Use st.code to display the string
-            st.code(full_embed_code, language='html')
+            st.code(full_responsive_embed_code, language='html')
 
-            # Also display the direct chart URL with the actual chart ID
+            st.subheader("Datawrapper Embed Code (Basic Iframe)")
+            # Construct the basic iframe HTML using an f-string with white background style
+            basic_iframe_html = f"""
+<iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 100%; border: none; background-color: white;" height="500" data-external="1"></iframe>
+"""
+            # Use st.code to display the string
+            st.code(basic_iframe_html, language='html')
+
+
+            # Also display the direct chart URL as text (optional, but can be helpful)
             chart_url = f"https://www.datawrapper.de/_/{chart_id}"
             st.write(f"Direct Chart Link (for reference): {chart_url}")
 
