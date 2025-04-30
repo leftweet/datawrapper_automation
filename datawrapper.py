@@ -372,7 +372,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         # --- Construct and embed the responsive iframe HTML using an f-string ---
         if chart_id:
             st.subheader("Datawrapper Game Flow Chart")
-            # Using an f-string for the template, escaping only literal curly braces
+            # Using an f-string for the template, meticulously escaping all literal curly braces
             responsive_iframe_code = f"""
 <iframe title="{chart_title}" aria-label="Interactive line chart" id="datawrapper-chart-{chart_id}" src="https://datawrapper.dwcdn.net/{chart_id}/1/" scrolling="no" frameborder="0" style="width: 0; min-width: 100% !important; border: none;" height="400" data-external="1"></iframe><script type="text/javascript">!function(){{var e=document.querySelectorAll("iframe");for(var t in a.data["datawrapper-height"])for(var r,i=0;r=e[i];i++)if(r.contentWindow===a.source){{var d=a.data["datawrapper-height"][t]+"px";r.style.height=d}}}}}}()}();</script>
 """
