@@ -212,6 +212,13 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
         metadata_url = f"{BASE_URL}/charts/{chart_id}"
         metadata_patch = {
             "metadata": {
+                "data": {
+                    "column-format": {
+                        team_a_col: {
+                            "number-append": " points"
+                        }
+                    }
+                }
                 "describe": {
                     "source-name": "Basketball Reference Play-by-Play",
                     "source-url": "", # Consider adding the original_url here if possible
@@ -229,7 +236,6 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                         team_a_col: {
                             "symbols": {"on": "last", "style": "hollow", "enabled": True},
                             "valueLabels": {"first": False, "enabled": True},
-                            "number-append": " points"
                         },
                         team_b_col: {
                             "symbols": {"on": "last", "style": "hollow", "enabled": True},
