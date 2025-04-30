@@ -218,7 +218,7 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                             "number-append": " points"
                         }
                     }
-                }
+                },
                 "describe": {
                     "source-name": "Basketball Reference Play-by-Play",
                     "source-url": "", # Consider adding the original_url here if possible
