@@ -317,8 +317,9 @@ def create_and_publish_datawrapper_chart(df, team1_abbr, team2_abbr):
                     "max-size": 10,
                     "outlines": False,
                     "overlays": [],
-                    "x-format": ".", # Let Datawrapper handle x-axis format
+                    "x-format": "auto", # Let Datawrapper handle x-axis format
                     "y-format": "auto",
+                    "x-grid-format": ".",
                     "color-key": True,
                     "base-color": "#2e2e2e",
                     "fixed-size": 5,
